@@ -1,0 +1,284 @@
+.page {
+  padding: 2rem;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+
+  h1 {
+    margin: 0;
+    font-size: 1.8rem;
+  }
+
+  p {
+    margin: 0.4rem 0 0;
+    color: #6b7280;
+  }
+}
+
+.createButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+
+  &:hover {
+    background: #1d4ed8;
+  }
+}
+
+/*
+ * Search, filtering, and sorting controls.
+ *
+ * The toolbar uses a flexible grid so the controls can
+ * share the available width on larger screens while
+ * naturally stacking on smaller screens.
+ */
+.toolbar {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 2fr)
+    repeat(4, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: white;
+}
+
+.searchField,
+.filterField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+
+  label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  input,
+  select {
+    width: 100%;
+    min-height: 40px;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+    background: white;
+    color: #111827;
+    font: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+    }
+  }
+}
+
+/*
+ * Displays the number of records returned by the current
+ * search/filter combination and indicates background refetching.
+ */
+.resultBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 40px;
+  margin-bottom: 0.75rem;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+/*
+ * Shared loading, empty, and API error states.
+ */
+.message,
+.empty,
+.error {
+  padding: 2rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: white;
+}
+
+.empty {
+  text-align: center;
+
+  h2 {
+    margin: 0;
+  }
+
+  p {
+    color: #6b7280;
+  }
+}
+
+.error {
+  color: #dc2626;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: white;
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
+  }
+
+  th {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #6b7280;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.taskLink {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.status,
+.priority {
+  display: inline-block;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.priority {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/*
+ * Pagination controls remain separate from the table so
+ * changing pages never affects the table layout itself.
+ */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+
+  button {
+    padding: 0.55rem 0.9rem;
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+    background: white;
+    color: #374151;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: #f9fafb;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  }
+
+  span {
+    min-width: 110px;
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 1100px) {
+  /*
+   * Four filters beside the search field become too cramped
+   * at tablet widths, so the toolbar moves to two columns.
+   */
+  .toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .searchField {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  .page {
+    padding: 1rem;
+  }
+
+  .header {
+    flex-direction: column;
+  }
+
+  .createButton {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .searchField {
+    grid-column: auto;
+  }
+
+  .resultBar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .pagination {
+    gap: 0.6rem;
+
+    button {
+      padding: 0.5rem 0.7rem;
+    }
+
+    span {
+      min-width: auto;
+    }
+  }
+}

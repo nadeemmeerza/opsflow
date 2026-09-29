@@ -1,0 +1,806 @@
+
+================================================================================
+FILE: D:\MY_PROJECTS\nest_projects\opsflow\apps\api\src\tickets\dto\create-ticket.dto.ts
+================================================================================
+
+import {
+  IsIn,
+  IsMongoId,
+  IsOptional,
+  IsString,
+  Length,
+  MaxLength,
+} from 'class-validator';
+
+export class CreateTicketDto {
+  @IsString()
+  @Length(3, 200)
+  title: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  description?: string;
+
+  @IsMongoId()
+  customerId: string;
+
+  @IsOptional()
+  @IsMongoId()
+  projectId?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  assigneeId?: string;
+
+  @IsOptional()
+  @IsIn([
+    'low',
+    'medium',
+    'high',
+    'urgent',
+  ])
+  priority?:
+    | 'low'
+    | 'medium'
+    | 'high'
+    | 'urgent';
+}
+
+================================================================================
+FILE: D:\MY_PROJECTS\nest_projects\opsflow\apps\api\src\tickets\dto\update-ticket.dto.ts
+================================================================================
+
+import {
+  IsIn,
+  IsMongoId,
+  IsOptional,
+  IsString,
+  Length,
+  MaxLength,
+} from 'class-validator';
+
+export class UpdateTicketDto {
+  @IsOptional()
+  @IsString()
+  @Length(3, 200)
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  description?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  customerId?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  projectId?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  assigneeId?: string;
+
+  @IsOptional()
+  @IsIn([
+    'open',
+    'in_progress',
+    'waiting',
+    'resolved',
+    'closed',
+  ])
+  status?:
+    | 'open'
+    | 'in_progress'
+    | 'waiting'
+    | 'resolved'
+    | 'closed';
+
+  @IsOptional()
+  @IsIn([
+    'low',
+    'medium',
+    'high',
+    'urgent',
+  ])
+  priority?:
+    | 'low'
+    | 'medium'
+    | 'high'
+    | 'urgent';
+}
+
+================================================================================
+FILE: D:\MY_PROJECTS\nest_projects\opsflow\apps\api\src\tickets\schemas\ticket.schema.ts
+================================================================================
+
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument, Types } from 'mongoose';
+
+export type TicketDocument = HydratedDocument<Ticket>;
+
+@Schema({
+  timestamps: true,
+})
+export class Ticket {
+  @Prop({
+    required: true,
+    trim: true,
+    minlength: 3,
+    maxlength: 200,
+  })
+  title: string;
+
+  @Prop({
+    trim: true,
+    maxlength: 5000,
+    default: '',
+  })
+  description: string;
+
+  @Prop({
+    required: true,
+    type: Types.ObjectId,
+    ref: 'Organization',
+    index: true,
+  })
+  organizationId: Types.ObjectId;
+
+  @Prop({
+    required: true,
+    type: Types.ObjectId,
+    ref: 'Customer',
+    index: true,
+  })
+  customerId: Types.ObjectId;
+
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Project',
+    default: null,
+  })
+  projectId: Types.ObjectId | null;
+
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'User',
+    default: null,
+  })
+  assigneeId: Types.ObjectId | null;
+
+  @Prop({
+    required: true,
+    type: Types.ObjectId,
+    ref: 'User',
+  })
+  createdBy: Types.ObjectId;
+
+  @Prop({
+    required: true,
+    enum: [
+      'open',
+      'in_progress',
+      'waiting',
+      'resolved',
+      'closed',
+    ],
+    default: 'open',
+  })
+  status:
+    | 'open'
+    | 'in_progress'
+    | 'waiting'
+    | 'resolved'
+    | 'closed';
+
+  @Prop({
+    required: true,
+    enum: [
+      'low',
+      'medium',
+      'high',
+      'urgent',
+    ],
+    default: 'medium',
+  })
+  priority:
+    | 'low'
+    | 'medium'
+    | 'high'
+    | 'urgent';
+
+  @Prop()
+  createdAt: Date;
+
+  @Prop()
+  updatedAt: Date;
+}
+
+export const TicketSchema =
+  SchemaFactory.createForClass(Ticket);
+
+TicketSchema.index({
+  organizationId: 1,
+  status: 1,
+});
+
+TicketSchema.index({
+  organizationId: 1,
+  customerId: 1,
+});
+
+TicketSchema.index({
+  organizationId: 1,
+  assigneeId: 1,
+});
+
+TicketSchema.index({
+  organizationId: 1,
+  projectId: 1,
+});
+
+================================================================================
+FILE: D:\MY_PROJECTS\nest_projects\opsflow\apps\api\src\tickets\tickets.controller.spec.ts
+================================================================================
+
+import { Test, TestingModule } from '@nestjs/testing';
+import { TicketsController } from './tickets.controller.js';
+
+describe('TicketsController', () => {
+  let controller: TicketsController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [TicketsController],
+    }).compile();
+
+    controller = module.get<TicketsController>(TicketsController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+
+
+================================================================================
+FILE: D:\MY_PROJECTS\nest_projects\opsflow\apps\api\src\tickets\tickets.controller.ts
+================================================================================
+
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+
+import { TicketsService } from './tickets.service.js';
+
+import { CreateTicketDto } from './dto/create-ticket.dto.js';
+import { UpdateTicketDto } from './dto/update-ticket.dto.js';
+
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+
+import { OrganizationMembershipGuard } from '../organization-members/guards/organization-membership.guard.js';
+
+import { RolesGuard } from '../common/guards/roles.guard.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
+
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js';
+
+@UseGuards(
+  JwtAuthGuard,
+  OrganizationMembershipGuard,
+  RolesGuard,
+)
+@Controller(
+  'organizations/:organizationId/tickets',
+)
+export class TicketsController {
+  constructor(
+    private readonly ticketsService:
+      TicketsService,
+  ) {}
+
+  @Post()
+  @Roles('owner', 'admin')
+  async create(
+    @Param('organizationId')
+    organizationId: string,
+
+    @Body()
+    dto: CreateTicketDto,
+
+    @CurrentUser()
+    user: AuthenticatedUser,
+  ) {
+    return this.ticketsService.create(
+      organizationId,
+      user.userId,
+      dto,
+    );
+  }
+
+  @Get()
+  async findAll(
+    @Param('organizationId')
+    organizationId: string,
+  ) {
+    return this.ticketsService.findAll(
+      organizationId,
+    );
+  }
+
+  @Get(':ticketId')
+  async findOne(
+    @Param('organizationId')
+    organizationId: string,
+
+    @Param('ticketId')
+    ticketId: string,
+  ) {
+    return this.ticketsService.findOne(
+      organizationId,
+      ticketId,
+    );
+  }
+
+  @Patch(':ticketId')
+  @Roles('owner', 'admin')
+  async update(
+    @Param('organizationId')
+    organizationId: string,
+
+    @Param('ticketId')
+    ticketId: string,
+
+    @Body()
+    dto: UpdateTicketDto,
+
+    @CurrentUser() user: AuthenticatedUser
+  ) {
+    return this.ticketsService.update(
+      organizationId,
+      ticketId,     
+      user.userId,
+       dto,
+    );
+  }
+
+  @Delete(':ticketId')
+  @Roles('owner')
+  async remove(
+    @Param('organizationId')
+    organizationId: string,
+
+    @Param('ticketId')
+    ticketId: string,
+
+    @CurrentUser() user: AuthenticatedUser
+  ) {
+    return this.ticketsService.remove(
+      organizationId,
+      ticketId,
+      user.userId
+    );
+  }
+}
+
+
+================================================================================
+FILE: D:\MY_PROJECTS\nest_projects\opsflow\apps\api\src\tickets\tickets.module.ts
+================================================================================
+
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+
+import {
+  Ticket,
+  TicketSchema,
+} from './schemas/ticket.schema.js';
+
+import {
+  Customer,
+  CustomerSchema,
+} from '../customers/schemas/customer.schema.js';
+
+import {
+  Project,
+  ProjectSchema,
+} from '../projects/schemas/project.schema.js';
+
+import {
+  OrganizationMember,
+  OrganizationMemberSchema,
+} from '../organization-members/schemas/organization-member.schema.js';
+
+import { TicketsService } from './tickets.service.js';
+import { TicketsController } from './tickets.controller.js';
+
+import { AuthModule } from '../auth/auth.module.js';
+
+import { OrganizationMembersModule } from '../organization-members/organization-members.module.js';
+import { AuditModule } from '../audit/audit.module.js';
+
+@Module({
+  imports: [
+    AuditModule,
+    AuthModule,
+
+    OrganizationMembersModule,
+
+    MongooseModule.forFeature([
+      {
+        name: Ticket.name,
+        schema: TicketSchema,
+      },
+      {
+        name: Customer.name,
+        schema: CustomerSchema,
+      },
+      {
+        name: Project.name,
+        schema: ProjectSchema,
+      },
+      {
+        name: OrganizationMember.name,
+        schema: OrganizationMemberSchema,
+      },
+    ]),
+  ],
+
+  controllers: [
+    TicketsController,
+  ],
+
+  providers: [
+    TicketsService,
+  ],
+})
+export class TicketsModule {}
+
+
+================================================================================
+FILE: D:\MY_PROJECTS\nest_projects\opsflow\apps\api\src\tickets\tickets.service.spec.ts
+================================================================================
+
+import { Test, TestingModule } from '@nestjs/testing';
+import { TicketsService } from './tickets.service.js';
+
+describe('TicketsService', () => {
+  let service: TicketsService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [TicketsService],
+    }).compile();
+
+    service = module.get<TicketsService>(TicketsService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});
+
+
+================================================================================
+FILE: D:\MY_PROJECTS\nest_projects\opsflow\apps\api\src\tickets\tickets.service.ts
+================================================================================
+
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+
+import { Ticket, TicketDocument } from './schemas/ticket.schema.js';
+
+import {
+  Customer,
+  CustomerDocument,
+} from '../customers/schemas/customer.schema.js';
+
+import {
+  Project,
+  ProjectDocument,
+} from '../projects/schemas/project.schema.js';
+
+import {
+  OrganizationMember,
+  OrganizationMemberDocument,
+} from '../organization-members/schemas/organization-member.schema.js';
+import { AuditService } from '../audit/audit.service.js';
+
+@Injectable()
+export class TicketsService {
+  constructor(
+    @InjectModel(Ticket.name)
+    private readonly ticketModel: Model<TicketDocument>,
+
+    @InjectModel(Customer.name)
+    private readonly customerModel: Model<CustomerDocument>,
+
+    @InjectModel(Project.name)
+    private readonly projectModel: Model<ProjectDocument>,
+
+    @InjectModel(OrganizationMember.name)
+    private readonly memberModel: Model<OrganizationMemberDocument>,
+
+    private readonly auditService: AuditService,
+  ) {}
+
+  async create(
+    organizationId: string,
+    userId: string,
+    data: {
+      title: string;
+      description?: string;
+      customerId: string;
+      projectId?: string;
+      assigneeId?: string;
+      priority?: 'low' | 'medium' | 'high' | 'urgent';
+    },
+  ) {
+    const organizationObjectId = new Types.ObjectId(organizationId);
+
+    const customer = await this.customerModel.findOne({
+      _id: new Types.ObjectId(data.customerId),
+      organizationId: organizationObjectId,
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    if (data.projectId) {
+      const project = await this.projectModel.findOne({
+        _id: new Types.ObjectId(data.projectId),
+        organizationId: organizationObjectId,
+      });
+
+      if (!project) {
+        throw new NotFoundException('Project not found');
+      }
+    }
+
+    if (data.assigneeId) {
+      const member = await this.memberModel.findOne({
+        organizationId: organizationObjectId,
+        userId: new Types.ObjectId(data.assigneeId),
+      });
+
+      if (!member) {
+        throw new ConflictException(
+          'Assignee is not a member of this organization',
+        );
+      }
+    }
+
+    const ticket = await this.ticketModel.create({
+      title: data.title.trim(),
+
+      description: data.description?.trim() ?? '',
+
+      organizationId: organizationObjectId,
+
+      customerId: new Types.ObjectId(data.customerId),
+
+      projectId: data.projectId ? new Types.ObjectId(data.projectId) : null,
+
+      assigneeId: data.assigneeId ? new Types.ObjectId(data.assigneeId) : null,
+
+      createdBy: new Types.ObjectId(userId),
+
+      status: 'open',
+
+      priority: data.priority ?? 'medium',
+    });
+
+    await this.auditService.log({
+      organizationId,
+      userId,
+      action: 'CREATE',
+      entity: 'Ticket',
+      entityId: ticket._id.toString(),
+      metadata: {
+        title: ticket.title,
+        priority: ticket.priority,
+        customerId: data.customerId,
+      },
+    });
+
+    return ticket;
+  }
+
+  async findAll(organizationId: string) {
+    return this.ticketModel
+      .find({
+        organizationId: new Types.ObjectId(organizationId),
+      })
+      .populate('customerId', 'name email phone company')
+      .populate('projectId', 'name key status')
+      .populate('assigneeId', 'name email status')
+      .sort({
+        createdAt: -1,
+      })
+      .exec();
+  }
+
+  async findOne(organizationId: string, ticketId: string) {
+    const ticket = await this.ticketModel
+      .findOne({
+        _id: new Types.ObjectId(ticketId),
+        organizationId: new Types.ObjectId(organizationId),
+      })
+      .populate('customerId', 'name email phone company')
+      .populate('projectId', 'name key status')
+      .populate('assigneeId', 'name email status')
+      .exec();
+
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    return ticket;
+  }
+
+  async update(
+    organizationId: string,
+    ticketId: string,
+    userId: string,
+    data: {
+      title?: string;
+      description?: string;
+      customerId?: string;
+      projectId?: string;
+      assigneeId?: string;
+      status?: 'open' | 'in_progress' | 'waiting' | 'resolved' | 'closed';
+      priority?: 'low' | 'medium' | 'high' | 'urgent';
+    },
+  ) {
+    const organizationObjectId = new Types.ObjectId(organizationId);
+
+    if (data.customerId) {
+      const customer = await this.customerModel.findOne({
+        _id: new Types.ObjectId(data.customerId),
+        organizationId: organizationObjectId,
+      });
+
+      if (!customer) {
+        throw new NotFoundException('Customer not found');
+      }
+    }
+
+    if (data.projectId) {
+      const project = await this.projectModel.findOne({
+        _id: new Types.ObjectId(data.projectId),
+        organizationId: organizationObjectId,
+      });
+
+      if (!project) {
+        throw new NotFoundException('Project not found');
+      }
+    }
+
+    if (data.assigneeId) {
+      const member = await this.memberModel.findOne({
+        organizationId: organizationObjectId,
+        userId: new Types.ObjectId(data.assigneeId),
+      });
+
+      if (!member) {
+        throw new ConflictException(
+          'Assignee is not a member of this organization',
+        );
+      }
+    }
+
+    const updateData: Record<string, unknown> = {};
+
+    if (data.title !== undefined) {
+      updateData.title = data.title.trim();
+    }
+
+    if (data.description !== undefined) {
+      updateData.description = data.description.trim();
+    }
+
+    if (data.customerId !== undefined) {
+      updateData.customerId = new Types.ObjectId(data.customerId);
+    }
+
+    if (data.projectId !== undefined) {
+      updateData.projectId = new Types.ObjectId(data.projectId);
+    }
+
+    if (data.assigneeId !== undefined) {
+      updateData.assigneeId = new Types.ObjectId(data.assigneeId);
+    }
+
+    if (data.status !== undefined) {
+      updateData.status = data.status;
+    }
+
+    if (data.priority !== undefined) {
+      updateData.priority = data.priority;
+    }
+
+    const ticket = await this.ticketModel
+      .findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(ticketId),
+          organizationId: organizationObjectId,
+        },
+        {
+          $set: updateData,
+        },
+        {
+          new: true,
+          runValidators: true,
+        },
+      )
+      .populate('customerId', 'name email phone company')
+      .populate('projectId', 'name key status')
+      .populate('assigneeId', 'name email status')
+      .exec();
+
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    await this.auditService.log({
+      organizationId,
+      userId,
+      action: 'UPDATE',
+      entity: 'Ticket',
+      entityId: ticket._id.toString(),
+      metadata: {
+        updatedFields: Object.keys(updateData),
+      },
+    });
+
+    return ticket;
+  }
+
+  async remove(organizationId: string, ticketId: string, userId: string) {
+    const ticket = await this.ticketModel
+      .findOneAndDelete({
+        _id: new Types.ObjectId(ticketId),
+        organizationId: new Types.ObjectId(organizationId),
+      })
+      .exec();
+
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    await this.auditService.log({
+      organizationId,
+      userId,
+      action: 'DELETE',
+      entity: 'Ticket',
+      entityId: ticket._id.toString(),
+      metadata: {
+        title: ticket.title,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Ticket deleted successfully',
+    };
+  }
+}
+

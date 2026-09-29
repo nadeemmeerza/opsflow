@@ -1,0 +1,248 @@
+.page {
+  padding: 32px;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  color: #6b7280;
+  font-size: 14px;
+
+  a {
+    color: #2563eb;
+    text-decoration: none;
+  }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid #e5e7eb;
+
+  h1 {
+    margin: 8px 0 12px;
+    font-size: 32px;
+  }
+}
+
+.key {
+  display: inline-flex;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+}
+
+.active,
+.archived {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.active {
+  color: #15803d;
+}
+
+.archived {
+  color: #6b7280;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.editButton,
+.deleteButton {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.editButton {
+  background: #2563eb;
+  color: white;
+  text-decoration: none;
+}
+
+.deleteButton {
+  border: 1px solid #fecaca;
+  background: #fff;
+  color: #dc2626;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.descriptionSection {
+  padding: 28px 0;
+  border-bottom: 1px solid #e5e7eb;
+
+  h2 {
+    margin: 0 0 12px;
+    font-size: 20px;
+  }
+
+  p {
+    max-width: 800px;
+    margin: 0;
+    color: #6b7280;
+    line-height: 1.7;
+    white-space: pre-wrap;
+  }
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(
+    4,
+    minmax(0, 1fr)
+  );
+  gap: 16px;
+  margin: 28px 0;
+}
+
+.infoCard {
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: white;
+
+  span {
+    display: block;
+    margin-bottom: 8px;
+    color: #6b7280;
+    font-size: 13px;
+  }
+
+  strong {
+    font-size: 15px;
+    text-transform: capitalize;
+  }
+}
+
+.workspace {
+  margin-top: 36px;
+}
+
+.sectionHeader {
+  margin-bottom: 20px;
+
+  h2 {
+    margin: 0 0 6px;
+    font-size: 22px;
+  }
+
+  p {
+    margin: 0;
+    color: #6b7280;
+  }
+}
+
+.workspaceGrid {
+  display: grid;
+  grid-template-columns: repeat(
+    3,
+    minmax(0, 1fr)
+  );
+  gap: 20px;
+}
+
+.workspaceCard {
+  padding: 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+
+  h3 {
+    margin: 16px 0 8px;
+    font-size: 18px;
+  }
+
+  p {
+    min-height: 48px;
+    margin: 0 0 18px;
+    color: #6b7280;
+    line-height: 1.5;
+  }
+}
+
+.workspaceIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  font-weight: 700;
+}
+
+.comingSoon {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.state,
+.errorState {
+  padding: 48px;
+  text-align: center;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+}
+
+.errorState {
+  color: #dc2626;
+}
+
+@media (max-width: 900px) {
+  .infoGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .workspaceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .header {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 20px;
+  }
+
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .editButton,
+  .deleteButton {
+    flex: 1;
+    text-align: center;
+  }
+}

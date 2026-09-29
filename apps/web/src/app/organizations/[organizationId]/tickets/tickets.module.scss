@@ -1,0 +1,354 @@
+/**
+ * Tickets list page styles.
+ *
+ * The layout is intentionally table-oriented because tickets contain
+ * several related pieces of information. The toolbar and pagination
+ * keep the growing ticket list manageable without changing the table
+ * structure itself.
+ */
+
+.page {
+  padding: 2rem;
+}
+
+/* Header containing the page title and create-ticket action. */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  h1 {
+    margin: 0 0 0.5rem;
+    font-size: 2rem;
+  }
+
+  p {
+    margin: 0;
+    color: #666;
+  }
+}
+
+/*
+ * Search/filter toolbar.
+ *
+ * CSS Grid allows the controls to use the available horizontal space
+ * while naturally collapsing on smaller screens.
+ */
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 2fr) repeat(4, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.searchInput,
+.select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  color: #111827;
+  font: inherit;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgb(37 99 235 / 10%);
+  }
+}
+
+.createButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem 1.1rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  color: white;
+  background: #2563eb;
+  border: none;
+  cursor: pointer;
+
+  &:hover {
+    background: #1d4ed8;
+  }
+}
+
+/*
+ * Result bar separates filtering information from the table.
+ * It also gives the user feedback about how many tickets are visible.
+ */
+.resultBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+/* Loading/error/empty states share the same visual container. */
+.state,
+.empty {
+  padding: 3rem;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+.empty {
+  h2 {
+    margin-top: 0;
+  }
+
+  p {
+    margin-bottom: 1.5rem;
+    color: #666;
+  }
+}
+
+/*
+ * The wrapper provides horizontal scrolling on smaller screens
+ * instead of forcing the table to become unreadable.
+ */
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1000px;
+
+  th,
+  td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  th {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #555;
+    background: #f9fafb;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover {
+    background: #f9fafb;
+  }
+}
+
+.ticketTitle {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+/* Ticket state and priority badges. */
+.badge {
+  display: inline-flex;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.status_open {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status_in_progress {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status_waiting {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.status_resolved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status_closed {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.priority_low {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.priority_medium {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.priority_high {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.priority_urgent {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.viewButton,
+.deleteButton {
+  padding: 0.4rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.viewButton {
+  color: #2563eb;
+  background: #eff6ff;
+  text-decoration: none;
+
+  &:hover {
+    background: #dbeafe;
+  }
+}
+
+.deleteButton {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+
+  &:hover {
+    background: #fee2e2;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/*
+ * Pagination controls.
+ *
+ * The active page is visually distinct, while disabled buttons
+ * communicate when the user is already at the beginning/end.
+ */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.paginationButton {
+  padding: 0.5rem 0.85rem;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: white;
+  color: #374151;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: #f3f4f6;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.pageInfo {
+  min-width: 120px;
+  text-align: center;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+/*
+ * Tablet layout:
+ * Give the search field a full row and allow the remaining
+ * controls to share the next row.
+ */
+@media (max-width: 1000px) {
+  .toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .searchInput {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Mobile layout. */
+@media (max-width: 650px) {
+  .page {
+    padding: 1rem;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .createButton {
+    width: 100%;
+  }
+
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .searchInput {
+    grid-column: auto;
+  }
+
+  .resultBar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .pagination {
+    flex-wrap: wrap;
+  }
+}

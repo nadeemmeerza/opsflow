@@ -1,0 +1,318 @@
+.page {
+  padding: 32px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 32px;
+
+  h1 {
+    margin: 4px 0 8px;
+    font-size: 32px;
+  }
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.subtitle {
+  margin: 0;
+  color: #6b7280;
+}
+
+.createButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 18px;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+/*
+ * Search/filter toolbar.
+ *
+ * The grid lets the controls naturally adapt to smaller
+ * screens without requiring inline styles in the page.
+ */
+.toolbar {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 1fr)
+    repeat(3, minmax(150px, 180px));
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+}
+
+.searchWrapper,
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.searchInput,
+.select {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  color: #111827;
+  font: inherit;
+  outline: none;
+
+  &:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgb(37 99 235 / 10%);
+  }
+}
+
+.resultBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 32px;
+  margin-bottom: 16px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.refreshing {
+  font-size: 13px;
+  color: #2563eb;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(300px, 1fr)
+  );
+  gap: 20px;
+}
+
+.card {
+  padding: 22px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+
+  h2 {
+    margin: 18px 0 10px;
+    font-size: 20px;
+  }
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.projectKey {
+  display: inline-flex;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: #f3f4f6;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.active,
+.archived {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.active {
+  color: #15803d;
+}
+
+.archived {
+  color: #6b7280;
+}
+
+.description {
+  min-height: 48px;
+  margin: 0;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.viewLink {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.deleteButton {
+  border: 0;
+  background: transparent;
+  color: #dc2626;
+  cursor: pointer;
+  font-weight: 600;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/*
+ * Pagination controls are deliberately simple because
+ * the main interaction is moving between server-side pages.
+ */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  margin-top: 32px;
+}
+
+.pageButton {
+  min-width: 110px;
+  padding: 9px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  font-weight: 600;
+
+  &:hover:not(:disabled) {
+    border-color: #2563eb;
+    color: #2563eb;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.pageInfo {
+  min-width: 110px;
+  text-align: center;
+  color: #4b5563;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.emptyState,
+.state,
+.errorState {
+  padding: 48px;
+  text-align: center;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+}
+
+.emptyState {
+  h2 {
+    margin-top: 0;
+  }
+
+  p {
+    margin-bottom: 24px;
+    color: #6b7280;
+  }
+}
+
+.errorState {
+  color: #dc2626;
+}
+
+/*
+ * On tablets and smaller screens the toolbar becomes
+ * a simpler vertical layout so controls remain usable.
+ */
+@media (max-width: 900px) {
+  .toolbar {
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(0, 1fr);
+  }
+
+  .searchWrapper {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 20px;
+  }
+
+  .header {
+    flex-direction: column;
+
+    h1 {
+      font-size: 28px;
+    }
+  }
+
+  .createButton {
+    width: 100%;
+  }
+
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .searchWrapper {
+    grid-column: auto;
+  }
+
+  .resultBar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .pagination {
+    gap: 10px;
+  }
+
+  .pageButton {
+    min-width: auto;
+  }
+}

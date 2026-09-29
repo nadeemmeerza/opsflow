@@ -1,0 +1,156 @@
+.page {
+  padding: 2rem;
+  max-width: 900px;
+}
+
+.header {
+  margin-bottom: 2rem;
+
+  h1 {
+    margin: 0.75rem 0 0.5rem;
+    font-size: 2rem;
+  }
+
+  p {
+    margin: 0;
+    color: #666;
+  }
+}
+
+.backLink {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.form {
+  display: grid;
+  gap: 1.5rem;
+  padding: 2rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+}
+
+.field {
+  display: grid;
+  gap: 0.5rem;
+
+  label {
+    font-weight: 600;
+  }
+
+  input,
+  textarea,
+  select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font: inherit;
+    background: white;
+  }
+
+  textarea {
+    resize: vertical;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: 2px solid #bfdbfe;
+    border-color: #2563eb;
+  }
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.errorText {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+}
+
+.cancelButton,
+.saveButton {
+  padding: 0.7rem 1.1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cancelButton {
+  color: #374151;
+  background: #f3f4f6;
+
+  &:hover {
+    background: #e5e7eb;
+  }
+}
+
+.saveButton {
+  color: white;
+  background: #2563eb;
+  border: none;
+
+  &:hover {
+    background: #1d4ed8;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.state {
+  margin: 2rem;
+  padding: 3rem;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 1rem;
+  }
+
+  .form {
+    padding: 1rem;
+  }
+
+  .row {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .cancelButton,
+  .saveButton {
+    text-align: center;
+  }
+}

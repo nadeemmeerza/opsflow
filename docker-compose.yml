@@ -1,0 +1,41 @@
+services:
+  mongodb:
+    image: mongo:8
+    container_name: opsflow-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: opsflow
+      MONGO_INITDB_ROOT_PASSWORD: opsflow_dev_password
+      MONGO_INITDB_DATABASE: opsflow
+    volumes:
+      - mongodb_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: opsflow-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: opsflow-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      MONGODB_URI: mongodb://opsflow:opsflow_dev_password@mongodb:27017/opsflow?authSource=admin
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_ACCESS_EXPIRES_IN: 15m
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - mongodb
+      - redis
+
+volumes:
+  mongodb_data:

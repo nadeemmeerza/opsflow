@@ -1,0 +1,319 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.backLink {
+  display: inline-block;
+  margin-bottom: 24px;
+  color: #6b7280;
+  text-decoration: none;
+  font-size: 14px;
+
+  &:hover {
+    color: #111827;
+  }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 28px;
+
+  h1 {
+    margin: 0 0 8px;
+    font-size: 30px;
+    color: #111827;
+  }
+
+  p {
+    margin: 0;
+    color: #6b7280;
+  }
+}
+
+.addButton {
+  padding: 10px 16px;
+  border-radius: 7px;
+  background: #111827;
+  color: white;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+
+  &:hover {
+    background: #1f2937;
+  }
+}
+
+.card {
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+}
+
+/*
+ * The toolbar groups search, filtering and sorting controls
+ * above the member table.
+ */
+.toolbar {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 1fr)
+    150px
+    150px
+    100px;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.searchInput,
+.select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: white;
+  color: #111827;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: #6b7280;
+    box-shadow: 0 0 0 2px
+      rgba(107, 114, 128, 0.12);
+  }
+}
+
+.sortButton {
+  min-height: 40px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+
+  &:hover {
+    background: #f9fafb;
+  }
+}
+
+/*
+ * Shows the total result count and gives feedback while
+ * RTK Query refreshes an existing result set.
+ */
+.resultBar {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.tableHeader,
+.row {
+  display: grid;
+  grid-template-columns:
+    2fr
+    2fr
+    1fr
+    100px;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 20px;
+}
+
+.tableHeader {
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.row {
+  min-height: 70px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+  font-size: 14px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  strong {
+    color: #111827;
+  }
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #374151;
+  font-weight: 700;
+}
+
+.role {
+  width: fit-content;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.owner {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.admin {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.member {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.removeButton {
+  border: none;
+  background: transparent;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.empty,
+.state {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty {
+  h2 {
+    margin: 0 0 8px;
+    color: #111827;
+    font-size: 20px;
+  }
+
+  p {
+    margin: 0;
+    color: #6b7280;
+  }
+}
+
+.state {
+  color: #6b7280;
+}
+
+.error {
+  margin-top: 8px;
+  color: #dc2626;
+}
+
+/*
+ * Pagination remains simple because the backend already returns
+ * the exact page metadata needed by the UI.
+ */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.paginationButton {
+  padding: 8px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+
+  &:hover:not(:disabled) {
+    background: #f9fafb;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.pageInfo {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .container {
+    padding: 20px;
+  }
+
+  .header {
+    flex-direction: column;
+  }
+
+  .addButton {
+    width: 100%;
+    text-align: center;
+  }
+
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .table {
+    overflow-x: auto;
+  }
+
+  .tableHeader,
+  .row {
+    min-width: 700px;
+  }
+}

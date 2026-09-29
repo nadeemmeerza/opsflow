@@ -1,0 +1,17 @@
+{
+  "name": "opsflow",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Production-grade multi-tenant business operations platform",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck"
+  },
+  "packageManager": "pnpm@10.19.0",
+  "devDependencies": {
+    "turbo": "latest"
+  }
+}

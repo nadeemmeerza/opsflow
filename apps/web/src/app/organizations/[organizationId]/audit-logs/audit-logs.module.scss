@@ -1,0 +1,174 @@
+.page {
+  padding: 2rem;
+}
+
+.header {
+  margin-bottom: 2rem;
+
+  h1 {
+    margin: 0.75rem 0 0.5rem;
+    font-size: 2rem;
+  }
+
+  p {
+    margin: 0;
+    color: #6b7280;
+  }
+}
+
+.backLink {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.state,
+.empty {
+  padding: 3rem;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+
+  h2 {
+    margin-top: 0;
+  }
+
+  p {
+    color: #6b7280;
+  }
+}
+
+.error {
+  color: #b91c1c;
+
+  p {
+    color: #b91c1c;
+  }
+}
+
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.table {
+  width: 100%;
+  min-width: 1000px;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+  }
+
+  th {
+    background: #f9fafb;
+    color: #555;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover {
+    background: #f9fafb;
+  }
+}
+
+.actionBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.action_create {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.action_update {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.action_delete {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.action_login {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.action_add_member {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.action_remove_member {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.action_change_role {
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
+.entity {
+  font-weight: 600;
+  color: #374151;
+}
+
+.user {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+
+  strong {
+    color: #111827;
+  }
+
+  span {
+    color: #6b7280;
+    font-size: 0.8rem;
+  }
+}
+
+.date {
+  color: #6b7280;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.metadata {
+  display: block;
+  max-width: 350px;
+  overflow: hidden;
+  color: #6b7280;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
