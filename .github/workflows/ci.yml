@@ -1,0 +1,85 @@
+name: OpsFlow CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+  pull_request:
+    branches:
+      - main
+      - develop
+
+# Prevent multiple CI runs for the same branch/PR from
+# consuming unnecessary GitHub Actions resources.
+concurrency:
+  group: opsflow-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # ------------------------------------------------------
+      # 1. Checkout repository
+      # ------------------------------------------------------
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------
+      # 2. Install pnpm
+      # ------------------------------------------------------
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
+      # ------------------------------------------------------
+      # 3. Setup Node.js
+      # ------------------------------------------------------
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # ------------------------------------------------------
+      # 4. Install monorepo dependencies
+      # ------------------------------------------------------
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ------------------------------------------------------
+      # 5. Run API unit tests
+      # ------------------------------------------------------
+
+      - name: Run API tests
+        run: pnpm --filter api test
+
+      # ------------------------------------------------------
+      # 6. Build API
+      # ------------------------------------------------------
+
+      - name: Build API
+        run: pnpm --filter api build
+
+      # ------------------------------------------------------
+      # 7. Build Next.js frontend
+      # ------------------------------------------------------
+
+      - name: Build Web
+        run: pnpm --filter web build
+
+      # ------------------------------------------------------
+      # 8. Run linting across the workspace
+      # ------------------------------------------------------
+
+      - name: Lint workspace
+        run: pnpm lint
