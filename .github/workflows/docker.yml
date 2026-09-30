@@ -1,4 +1,4 @@
-name: OpsFlow Docker CI
+name: OpsFlow Docker CI/CD
 
 on:
   push:
@@ -15,9 +15,28 @@ concurrency:
   group: opsflow-docker-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# ------------------------------------------------------------
+# Permissions
+# ------------------------------------------------------------
+#
+# packages: write
+#   Allows GitHub Actions to publish Docker images to GHCR.
+#
+# contents: read
+#   Allows the workflow to read the repository.
+#
+# These permissions are intentionally scoped to the minimum
+# required for this workflow.
+# ------------------------------------------------------------
+
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   docker:
-    name: Build Docker Images
+    name: Build and Publish Docker Images
+
     runs-on: ubuntu-latest
 
     steps:
@@ -31,34 +50,79 @@ jobs:
       # ------------------------------------------------------
       # 2. Setup Docker Buildx
       # ------------------------------------------------------
+      #
+      # Buildx provides modern Docker builds and GitHub Actions
+      # cache support.
+      # ------------------------------------------------------
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       # ------------------------------------------------------
-      # 3. Build API image
+      # 3. Login to GitHub Container Registry
+      # ------------------------------------------------------
+      #
+      # This login is only needed when the workflow is going
+      # to publish an image.
+      #
+      # On pull requests, images are built but not pushed, so
+      # registry authentication is skipped.
       # ------------------------------------------------------
 
-      - name: Build API image
+      - name: Login to GitHub Container Registry
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ------------------------------------------------------
+      # 4. Build and optionally publish API image
+      # ------------------------------------------------------
+      #
+      # Every push receives a commit-SHA tag.
+      #
+      # The main branch additionally receives the "latest" tag.
+      #
+      # Pull requests only build the image. They never publish it.
+      # ------------------------------------------------------
+
+      - name: Build and publish API image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./apps/api/Dockerfile
-          push: false
-          tags: opsflow-api:ci
+
+          push: ${{ github.event_name == 'push' }}
+
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/opsflow-api:${{ github.sha }}
+            ${{ github.ref == 'refs/heads/main' && format('ghcr.io/{0}/opsflow-api:latest', github.repository_owner) || '' }}
+
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       # ------------------------------------------------------
-      # 4. Build Web image
+      # 5. Build and optionally publish Web image
+      # ------------------------------------------------------
+      #
+      # The frontend follows the same tagging strategy as the
+      # API image so both containers can be traced back to the
+      # exact source commit that produced them.
       # ------------------------------------------------------
 
-      - name: Build Web image
+      - name: Build and publish Web image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./apps/web/Dockerfile
-          push: false
-          tags: opsflow-web:ci
+
+          push: ${{ github.event_name == 'push' }}
+
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/opsflow-web:${{ github.sha }}
+            ${{ github.ref == 'refs/heads/main' && format('ghcr.io/{0}/opsflow-web:latest', github.repository_owner) || '' }}
+
           cache-from: type=gha
           cache-to: type=gha,mode=max
