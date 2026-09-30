@@ -1,0 +1,64 @@
+name: OpsFlow Docker CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+  pull_request:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: opsflow-docker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+
+    steps:
+      # ------------------------------------------------------
+      # 1. Checkout repository
+      # ------------------------------------------------------
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------
+      # 2. Setup Docker Buildx
+      # ------------------------------------------------------
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ------------------------------------------------------
+      # 3. Build API image
+      # ------------------------------------------------------
+
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/api/Dockerfile
+          push: false
+          tags: opsflow-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ------------------------------------------------------
+      # 4. Build Web image
+      # ------------------------------------------------------
+
+      - name: Build Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/web/Dockerfile
+          push: false
+          tags: opsflow-web:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
