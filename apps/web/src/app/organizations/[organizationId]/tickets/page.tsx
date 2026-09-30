@@ -20,17 +20,14 @@ import { AppShell } from '@/components/layout/AppShell/AppShell';
 export default function TicketsPage() {
   const params = useParams();
 
-  const organizationId = params.organizationId as string;
+  const organizationId =
+    params.organizationId as string;
 
-  /*
-   * Search is split into two states.
-   *
-   * `searchInput` updates immediately as the user types.
-   * `search` is updated after a short delay so we do not
-   * send an API request for every individual keystroke.
-   */
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] =
+    useState('');
+
+  const [search, setSearch] =
+    useState('');
 
   const [status, setStatus] =
     useState<TicketStatus | ''>('');
@@ -46,16 +43,8 @@ export default function TicketsPage() {
 
   const [page, setPage] = useState(1);
 
-  /*
-   * The API supports a maximum page size of 50.
-   * Ten records keeps the list compact and easy to scan.
-   */
   const limit = 10;
 
-  /*
-   * Debounce the search field so the backend receives
-   * the final search term rather than every keystroke.
-   */
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setSearch(searchInput.trim());
@@ -67,19 +56,6 @@ export default function TicketsPage() {
     };
   }, [searchInput]);
 
-  /*
-   * Any filter or sorting change starts from page one.
-   * Otherwise the user could remain on a page number that
-   * no longer exists after filtering.
-   */
-  useEffect(() => {
-    setPage(1);
-  }, [status, priority, sortBy, sortOrder]);
-
-  /*
-   * The ticket API now performs search, filtering, sorting,
-   * and pagination on the backend.
-   */
   const {
     data: ticketsResponse,
     isLoading,
@@ -98,22 +74,48 @@ export default function TicketsPage() {
     },
   });
 
-  /*
-   * The new API response contains:
-   *
-   * data.items       -> tickets for the current page
-   * data.pagination  -> total records and page information
-   */
   const tickets =
     ticketsResponse?.data.items ?? [];
 
   const pagination =
     ticketsResponse?.data.pagination;
 
-  const [deleteTicket, { isLoading: isDeleting }] =
-    useDeleteTicketMutation();
+  const [
+    deleteTicket,
+    { isLoading: isDeleting },
+  ] = useDeleteTicketMutation();
 
-  const handleDelete = async (ticketId: string) => {
+  const handleStatusChange = (
+    value: TicketStatus | '',
+  ) => {
+    setStatus(value);
+    setPage(1);
+  };
+
+  const handlePriorityChange = (
+    value: TicketPriority | '',
+  ) => {
+    setPriority(value);
+    setPage(1);
+  };
+
+  const handleSortByChange = (
+    value: TicketSortBy,
+  ) => {
+    setSortBy(value);
+    setPage(1);
+  };
+
+  const handleSortOrderChange = (
+    value: TicketSortOrder,
+  ) => {
+    setSortOrder(value);
+    setPage(1);
+  };
+
+  const handleDelete = async (
+    ticketId: string,
+  ) => {
     const confirmed = window.confirm(
       'Are you sure you want to delete this ticket?',
     );
@@ -139,14 +141,13 @@ export default function TicketsPage() {
     }
   };
 
-  /*
-   * Move to the requested page only when it is inside
-   * the range returned by the backend.
-   */
-  const handlePageChange = (nextPage: number) => {
+  const handlePageChange = (
+    nextPage: number,
+  ) => {
     if (
       nextPage < 1 ||
-      nextPage > (pagination?.totalPages ?? 1)
+      nextPage >
+        (pagination?.totalPages ?? 1)
     ) {
       return;
     }
@@ -158,7 +159,6 @@ export default function TicketsPage() {
     <ProtectedRoute>
       <AppShell>
         <div className={styles.page}>
-          {/* Page heading and create-ticket action. */}
           <div className={styles.header}>
             <div>
               <h1>Tickets</h1>
@@ -177,16 +177,14 @@ export default function TicketsPage() {
             </Link>
           </div>
 
-          {/* 
-           * Search, filtering, and sorting controls.
-           * These values are sent directly to the paginated API.
-           */}
           <div className={styles.toolbar}>
             <input
               type="search"
               value={searchInput}
               onChange={(event) =>
-                setSearchInput(event.target.value)
+                setSearchInput(
+                  event.target.value,
+                )
               }
               placeholder="Search tickets..."
               className={styles.searchInput}
@@ -195,7 +193,7 @@ export default function TicketsPage() {
             <select
               value={status}
               onChange={(event) =>
-                setStatus(
+                handleStatusChange(
                   event.target.value as
                     | TicketStatus
                     | '',
@@ -231,7 +229,7 @@ export default function TicketsPage() {
             <select
               value={priority}
               onChange={(event) =>
-                setPriority(
+                handlePriorityChange(
                   event.target.value as
                     | TicketPriority
                     | '',
@@ -263,7 +261,7 @@ export default function TicketsPage() {
             <select
               value={sortBy}
               onChange={(event) =>
-                setSortBy(
+                handleSortByChange(
                   event.target.value as TicketSortBy,
                 )
               }
@@ -293,7 +291,7 @@ export default function TicketsPage() {
             <select
               value={sortOrder}
               onChange={(event) =>
-                setSortOrder(
+                handleSortOrderChange(
                   event.target.value as TicketSortOrder,
                 )
               }
@@ -309,26 +307,24 @@ export default function TicketsPage() {
             </select>
           </div>
 
-          {/* 
-           * Shows result count and gives visual feedback while
-           * a new search/filter request is being fetched.
-           */}
-          {!isLoading && !isError && pagination && (
-            <div className={styles.resultBar}>
-              <span>
-                {pagination.total}{' '}
-                {pagination.total === 1
-                  ? 'ticket'
-                  : 'tickets'}
-              </span>
-
-              {isFetching && (
+          {!isLoading &&
+            !isError &&
+            pagination && (
+              <div className={styles.resultBar}>
                 <span>
-                  Updating...
+                  {pagination.total}{' '}
+                  {pagination.total === 1
+                    ? 'ticket'
+                    : 'tickets'}
                 </span>
-              )}
-            </div>
-          )}
+
+                {isFetching && (
+                  <span>
+                    Updating...
+                  </span>
+                )}
+              </div>
+            )}
 
           {isLoading && (
             <div className={styles.state}>
@@ -344,10 +340,6 @@ export default function TicketsPage() {
             </div>
           )}
 
-          {/* 
-           * Empty state covers both a completely empty organization
-           * and a search/filter combination with no matching tickets.
-           */}
           {!isLoading &&
             !isError &&
             tickets.length === 0 && (
@@ -385,7 +377,6 @@ export default function TicketsPage() {
             !isError &&
             tickets.length > 0 && (
               <>
-                {/* Ticket results table. */}
                 <div className={styles.tableWrapper}>
                   <table className={styles.table}>
                     <thead>
@@ -403,11 +394,6 @@ export default function TicketsPage() {
 
                     <tbody>
                       {tickets.map((ticket) => {
-                        /*
-                         * The backend populates these relationships,
-                         * but the API type also allows an ID string.
-                         * We therefore safely check the runtime shape.
-                         */
                         const customer =
                           typeof ticket.customerId ===
                           'object'
@@ -522,14 +508,12 @@ export default function TicketsPage() {
                   </table>
                 </div>
 
-                {/* 
-                 * Pagination is driven by backend metadata rather
-                 * than calculating pages from the currently loaded rows.
-                 */}
                 {pagination &&
                   pagination.totalPages > 1 && (
                     <div
-                      className={styles.pagination}
+                      className={
+                        styles.pagination
+                      }
                     >
                       <button
                         type="button"

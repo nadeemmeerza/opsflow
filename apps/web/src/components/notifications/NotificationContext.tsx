@@ -216,14 +216,20 @@ export function NotificationProvider({
   /*
    * Clean up all active timers when the provider
    * is unmounted.
+   *
+   * Capture the current Map inside the effect so the
+   * cleanup function operates on the same Map instance
+   * that existed when the effect was created.
    */
   useEffect(() => {
-    return () => {
-      timersRef.current.forEach(
-        (timer) => clearTimeout(timer),
-      );
+    const timers = timersRef.current;
 
-      timersRef.current.clear();
+    return () => {
+      timers.forEach((timer) => {
+        clearTimeout(timer);
+      });
+
+      timers.clear();
     };
   }, []);
 

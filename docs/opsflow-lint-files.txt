@@ -1,0 +1,3470 @@
+
+============================================================
+FILE: apps/web/src/app/organizations/[organizationId]/dashboard/page.tsx
+============================================================
+
+"use client";
+
+import Link from "next/link";
+import { useParams } from "next/navigation";
+
+import { AppShell } from "@/components/layout/AppShell/AppShell";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+
+import {
+  useGetDashboardQuery,
+  type DashboardStats,
+} from "@/features/dashboard/dashboardApi";
+
+import styles from "./dashboard.module.scss";
+import { type AuditLog, useGetAuditLogsQuery } from "@/features/audit/auditApi";
+
+export default function OrganizationDashboardPage() {
+  const params = useParams<{ organizationId: string }>();
+
+  const organizationId = params.organizationId;
+
+  const { data, isLoading, isError } = useGetDashboardQuery(organizationId);
+
+  const {
+    data: auditData,
+    isLoading: isAuditLoading,
+    isError: isAuditError,
+  } = useGetAuditLogsQuery(organizationId);
+
+  const dashboard = data?.data;
+
+  function getActivityDescription(log: AuditLog) {
+    const metadata = log.metadata;
+
+    if (log.action === "CREATE") {
+      if (typeof metadata.name === "string") {
+        return `created "${metadata.name}"`;
+      }
+
+      if (typeof metadata.title === "string") {
+        return `created "${metadata.title}"`;
+      }
+
+      return "created a new record";
+    }
+
+    if (log.action === "UPDATE") {
+      if (Array.isArray(metadata.updatedFields)) {
+        const fields = metadata.updatedFields.filter(
+          (field): field is string => typeof field === "string",
+        );
+
+        if (fields.length > 0) {
+          return `updated ${fields.join(", ")}`;
+        }
+      }
+
+      return "updated a record";
+    }
+
+    if (log.action === "DELETE") {
+      return "deleted a record";
+    }
+
+    if (log.action === "ADD_MEMBER") {
+      const role = typeof metadata.role === "string" ? metadata.role : "member";
+
+      return `added a ${role}`;
+    }
+
+    if (log.action === "REMOVE_MEMBER") {
+      return "removed a member";
+    }
+
+    if (log.action === "CHANGE_ROLE") {
+      const role = typeof metadata.role === "string" ? metadata.role : "member";
+
+      return `changed a member role to ${role}`;
+    }
+
+    if (log.action === "LOGIN") {
+      return "logged in";
+    }
+
+    return "performed an action";
+  }
+
+  function ActivityItem({ log }: { log: AuditLog }) {
+    const user =
+      typeof log.userId === "object" ? log.userId.name : "Unknown user";
+
+    const description = getActivityDescription(log);
+
+    const time = formatRelativeTime(log.createdAt);
+
+    return (
+      <div className={styles.activityItem}>
+        <div className={styles.activityAction}>
+          <span className={styles.actionBadge}>{log.action}</span>
+        </div>
+
+        <div className={styles.activityDetails}>
+          <strong>{log.entity}</strong>
+
+          <span>
+            {user} {description}
+          </span>
+        </div>
+
+        <time className={styles.activityTime}>{time}</time>
+      </div>
+    );
+  }
+
+  interface RecentActivityProps {
+    logs: AuditLog[];
+    isLoading: boolean;
+    isError: boolean;
+  }
+
+  function RecentActivity({ logs, isLoading, isError }: RecentActivityProps) {
+    return (
+      <section className={styles.activity}>
+        <div className={styles.activityHeader}>
+          <div>
+            <h2>Recent Activity</h2>
+            <p>Latest activity in this organization.</p>
+          </div>
+        </div>
+
+        {isLoading && (
+          <div className={styles.activityState}>Loading activity...</div>
+        )}
+
+        {isError && (
+          <div className={styles.activityError}>
+            Failed to load recent activity.
+          </div>
+        )}
+
+        {!isLoading && !isError && logs.length === 0 && (
+          <div className={styles.activityState}>No recent activity.</div>
+        )}
+
+        {!isLoading && !isError && logs.length > 0 && (
+          <div className={styles.activityList}>
+            {logs.slice(0, 10).map((log) => (
+              <ActivityItem key={log._id} log={log} />
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <ProtectedRoute>
+      <AppShell>
+        <div className={styles.page}>
+          {/* Header */}
+          <div className={styles.header}>
+            <div>
+              <h1>Dashboard</h1>
+
+              <p>Overview of your organization&apos;s operations.</p>
+            </div>
+
+            <Link
+              href={`/organizations/${organizationId}`}
+              className={styles.backLink}
+            >
+              ← Organization
+            </Link>
+          </div>
+
+          {/* Loading */}
+          {isLoading && (
+            <div className={styles.state}>Loading dashboard...</div>
+          )}
+
+          {/* Error */}
+          {isError && (
+            <div className={styles.error}>Failed to load dashboard.</div>
+          )}
+
+          {/* Dashboard */}
+          {dashboard && (
+            <>
+              {/* Operational Alert */}
+              {dashboard.overdueTasks > 0 && (
+                <div className={styles.alert}>
+                  <div>
+                    <strong>Overdue Tasks</strong>
+
+                    <p>
+                      {dashboard.overdueTasks}{" "}
+                      {dashboard.overdueTasks === 1 ? "task is" : "tasks are"}{" "}
+                      past their due date.
+                    </p>
+                  </div>
+
+                  <Link
+                    href={`/organizations/${organizationId}/projects`}
+                    className={styles.alertLink}
+                  >
+                    View Tasks →
+                  </Link>
+                </div>
+              )}
+
+              {/* Statistics */}
+              <div className={styles.grid}>
+                {/* Projects */}
+                <DashboardCard
+                  title="Projects"
+                  total={dashboard.projects.total}
+                  details={`${dashboard.projects.active} active · ${dashboard.projects.archived} archived`}
+                  href={`/organizations/${organizationId}/projects`}
+                />
+
+                {/* Tasks */}
+                <TaskDashboardCard
+                  tasks={dashboard.tasks}
+                  href={`/organizations/${organizationId}/projects`}
+                />
+
+                {/* Customers */}
+                <DashboardCard
+                  title="Customers"
+                  total={dashboard.customers.total}
+                  details={`${dashboard.customers.active} active · ${dashboard.customers.inactive} inactive`}
+                  href={`/organizations/${organizationId}/customers`}
+                />
+
+                {/* Tickets */}
+                <TicketDashboardCard
+                  tickets={dashboard.tickets}
+                  href={`/organizations/${organizationId}/tickets`}
+                />
+              </div>
+              <RecentActivity
+                logs={auditData?.data ?? []}
+                isLoading={isAuditLoading}
+                isError={isAuditError}
+              />
+            </>
+          )}
+        </div>
+      </AppShell>
+    </ProtectedRoute>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Dashboard Card                                                             */
+/* -------------------------------------------------------------------------- */
+
+interface DashboardCardProps {
+  title: string;
+  total: number;
+  details: string;
+  href: string;
+}
+
+function DashboardCard({ title, total, details, href }: DashboardCardProps) {
+  return (
+    <Link href={href} className={styles.card}>
+      <div className={styles.cardHeader}>
+        <h2>{title}</h2>
+
+        <span>→</span>
+      </div>
+
+      <div className={styles.total}>{total}</div>
+
+      <p>{details}</p>
+    </Link>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Task Dashboard Card                                                        */
+/* -------------------------------------------------------------------------- */
+
+interface TaskDashboardCardProps {
+  tasks: DashboardStats["tasks"];
+  href: string;
+}
+
+function TaskDashboardCard({ tasks, href }: TaskDashboardCardProps) {
+  return (
+    <Link href={href} className={styles.card}>
+      <div className={styles.cardHeader}>
+        <h2>Tasks</h2>
+
+        <span>→</span>
+      </div>
+
+      <div className={styles.total}>{tasks.total}</div>
+
+      <div className={styles.taskBreakdown}>
+        <div className={styles.taskRow}>
+          <span>Todo</span>
+
+          <strong>{tasks.todo}</strong>
+        </div>
+
+        <div className={styles.taskRow}>
+          <span>In Progress</span>
+
+          <strong>{tasks.inProgress}</strong>
+        </div>
+
+        <div className={styles.taskRow}>
+          <span>Review</span>
+
+          <strong>{tasks.review}</strong>
+        </div>
+
+        <div className={styles.taskRow}>
+          <span>Done</span>
+
+          <strong>{tasks.done}</strong>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Ticket Dashboard Card                                                      */
+/* -------------------------------------------------------------------------- */
+
+interface TicketDashboardCardProps {
+  tickets: DashboardStats["tickets"];
+  href: string;
+}
+
+function TicketDashboardCard({ tickets, href }: TicketDashboardCardProps) {
+  return (
+    <Link href={href} className={styles.card}>
+      <div className={styles.cardHeader}>
+        <h2>Tickets</h2>
+
+        <span>→</span>
+      </div>
+
+      <div className={styles.total}>{tickets.total}</div>
+
+      <div className={styles.ticketBreakdown}>
+        <div className={styles.ticketRow}>
+          <span>Open</span>
+
+          <strong>{tickets.open}</strong>
+        </div>
+
+        <div className={styles.ticketRow}>
+          <span>In Progress</span>
+
+          <strong>{tickets.inProgress}</strong>
+        </div>
+
+        <div className={styles.ticketRow}>
+          <span>Waiting</span>
+
+          <strong>{tickets.waiting}</strong>
+        </div>
+
+        <div className={styles.ticketRow}>
+          <span>Resolved</span>
+
+          <strong>{tickets.resolved}</strong>
+        </div>
+
+        <div className={styles.ticketRow}>
+          <span>Closed</span>
+
+          <strong>{tickets.closed}</strong>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function formatRelativeTime(dateString: string) {
+  const date = new Date(dateString);
+  const now = new Date();
+
+  const differenceInSeconds = Math.floor(
+    (now.getTime() - date.getTime()) / 1000,
+  );
+
+  if (differenceInSeconds < 60) {
+    return "just now";
+  }
+
+  const minutes = Math.floor(differenceInSeconds / 60);
+
+  if (minutes < 60) {
+    return `${minutes} ${minutes === 1 ? "minute" : "minutes"} ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+
+  if (hours < 24) {
+    return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+
+  if (days < 7) {
+    return `${days} ${days === 1 ? "day" : "days"} ago`;
+  }
+
+  return date.toLocaleDateString();
+}
+
+============================================================
+FILE: apps/web/src/app/organizations/[organizationId]/projects/page.tsx
+============================================================
+
+'use client';
+
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import {
+  useEffect,
+  useState,
+} from 'react';
+
+import {
+  useDeleteProjectMutation,
+  useGetProjectsQuery,
+  type ProjectSortBy,
+  type ProjectSortOrder,
+  type ProjectStatus,
+} from '@/features/projects/projectsApi';
+
+import {
+  getApiErrorMessage,
+} from '@/store/api/apiSlice';
+
+import {
+  useNotification,
+} from '@/components/notifications/NotificationContext';
+
+import styles from './projects.module.scss';
+
+import {
+  ProtectedRoute,
+} from '@/components/auth/ProtectedRoute';
+
+import {
+  AppShell,
+} from '@/components/layout/AppShell/AppShell';
+
+const PAGE_SIZE = 10;
+
+export default function ProjectsPage() {
+  const params = useParams();
+
+  const organizationId =
+    params.organizationId as string;
+
+  const { success, error: notifyError } =
+    useNotification();
+
+  /**
+   * Search is kept locally so we can debounce it before
+   * sending requests to the API.
+   */
+  const [searchInput, setSearchInput] =
+    useState('');
+
+  const [search, setSearch] =
+    useState('');
+
+  const [status, setStatus] =
+    useState<ProjectStatus | ''>('');
+
+  const [sortBy, setSortBy] =
+    useState<ProjectSortBy>(
+      'createdAt',
+    );
+
+  const [sortOrder, setSortOrder] =
+    useState<ProjectSortOrder>('desc');
+
+  const [page, setPage] = useState(1);
+
+  /**
+   * Debouncing prevents an API request on every single
+   * keystroke while the user is typing.
+   */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 350);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchInput]);
+
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isError,
+  } = useGetProjectsQuery({
+    organizationId,
+    query: {
+      page,
+      limit: PAGE_SIZE,
+      search,
+      status: status || undefined,
+      sortBy,
+      sortOrder,
+    },
+  });
+
+  const [deleteProject, { isLoading: isDeleting }] =
+    useDeleteProjectMutation();
+
+  const projects =
+    data?.data.items ?? [];
+
+  const pagination =
+    data?.data.pagination;
+
+  /**
+   * If a filter/search reduces the number of pages,
+   * make sure the current page does not become invalid.
+   */
+  useEffect(() => {
+    if (
+      pagination &&
+      pagination.totalPages > 0 &&
+      page > pagination.totalPages
+    ) {
+      setPage(pagination.totalPages);
+    }
+  }, [page, pagination]);
+
+  const handleStatusChange = (
+    value: ProjectStatus | '',
+  ) => {
+    setStatus(value);
+    setPage(1);
+  };
+
+  const handleSortByChange = (
+    value: ProjectSortBy,
+  ) => {
+    setSortBy(value);
+    setPage(1);
+  };
+
+  const handleSortOrderChange = (
+    value: ProjectSortOrder,
+  ) => {
+    setSortOrder(value);
+    setPage(1);
+  };
+
+  const handleDelete = async (
+    projectId: string,
+    projectName: string,
+  ) => {
+    const confirmed = window.confirm(
+      `Delete project "${projectName}"? This action cannot be undone.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteProject({
+        organizationId,
+        projectId,
+      }).unwrap();
+
+      success(
+        'Project deleted successfully.',
+      );
+    } catch (error) {
+      const messages =
+        getApiErrorMessage(error);
+
+      notifyError(messages[0]);
+    }
+  };
+
+  const hasProjects =
+    projects.length > 0;
+
+  const hasFilters =
+    Boolean(search) || Boolean(status);
+
+  const startResult =
+    pagination &&
+    pagination.total > 0
+      ? (pagination.page - 1) *
+          pagination.limit +
+        1
+      : 0;
+
+  const endResult =
+    pagination &&
+    pagination.total > 0
+      ? Math.min(
+          pagination.page *
+            pagination.limit,
+          pagination.total,
+        )
+      : 0;
+
+  return (
+    <ProtectedRoute>
+      <AppShell>
+        <div className={styles.page}>
+          <div className={styles.header}>
+            <div>
+              <p className={styles.eyebrow}>
+                Organization
+              </p>
+
+              <h1>Projects</h1>
+
+              <p className={styles.subtitle}>
+                Manage projects belonging to
+                this organization.
+              </p>
+            </div>
+
+            <Link
+              href={`/organizations/${organizationId}/projects/new`}
+              className={styles.createButton}
+            >
+              + New project
+            </Link>
+          </div>
+
+          {/* Search, filtering and sorting stay above the result grid. */}
+          <div className={styles.toolbar}>
+            <div className={styles.searchWrapper}>
+              <label
+                htmlFor="project-search"
+                className={styles.label}
+              >
+                Search
+              </label>
+
+              <input
+                id="project-search"
+                type="search"
+                value={searchInput}
+                onChange={(event) =>
+                  setSearchInput(
+                    event.target.value,
+                  )
+                }
+                placeholder="Search projects..."
+                className={styles.searchInput}
+              />
+            </div>
+
+            <div className={styles.control}>
+              <label
+                htmlFor="project-status"
+                className={styles.label}
+              >
+                Status
+              </label>
+
+              <select
+                id="project-status"
+                value={status}
+                onChange={(event) =>
+                  handleStatusChange(
+                    event.target
+                      .value as
+                      | ProjectStatus
+                      | '',
+                  )
+                }
+                className={styles.select}
+              >
+                <option value="">
+                  All statuses
+                </option>
+
+                <option value="active">
+                  Active
+                </option>
+
+                <option value="archived">
+                  Archived
+                </option>
+              </select>
+            </div>
+
+            <div className={styles.control}>
+              <label
+                htmlFor="project-sort"
+                className={styles.label}
+              >
+                Sort by
+              </label>
+
+              <select
+                id="project-sort"
+                value={sortBy}
+                onChange={(event) =>
+                  handleSortByChange(
+                    event.target
+                      .value as ProjectSortBy,
+                  )
+                }
+                className={styles.select}
+              >
+                <option value="createdAt">
+                  Created date
+                </option>
+
+                <option value="updatedAt">
+                  Updated date
+                </option>
+
+                <option value="name">
+                  Name
+                </option>
+
+                <option value="key">
+                  Key
+                </option>
+
+                <option value="status">
+                  Status
+                </option>
+              </select>
+            </div>
+
+            <div className={styles.control}>
+              <label
+                htmlFor="project-sort-order"
+                className={styles.label}
+              >
+                Order
+              </label>
+
+              <select
+                id="project-sort-order"
+                value={sortOrder}
+                onChange={(event) =>
+                  handleSortOrderChange(
+                    event.target
+                      .value as ProjectSortOrder,
+                  )
+                }
+                className={styles.select}
+              >
+                <option value="desc">
+                  Descending
+                </option>
+
+                <option value="asc">
+                  Ascending
+                </option>
+              </select>
+            </div>
+          </div>
+
+          {/* Shows the user exactly which slice of the dataset is visible. */}
+          {!isLoading &&
+            !isError &&
+            pagination && (
+              <div className={styles.resultBar}>
+                <span>
+                  {pagination.total === 0
+                    ? 'No projects found'
+                    : `Showing ${startResult}-${endResult} of ${pagination.total} projects`}
+                </span>
+
+                {isFetching && (
+                  <span
+                    className={
+                      styles.refreshing
+                    }
+                  >
+                    Updating...
+                  </span>
+                )}
+              </div>
+            )}
+
+          {isLoading && (
+            <div className={styles.state}>
+              Loading projects...
+            </div>
+          )}
+
+          {isError && (
+            <div
+              className={styles.errorState}
+              role="alert"
+            >
+              Unable to load projects.
+            </div>
+          )}
+
+          {!isLoading &&
+            !isError &&
+            projects.length === 0 && (
+              <div className={styles.emptyState}>
+                <h2>
+                  {hasFilters
+                    ? 'No matching projects'
+                    : 'No projects yet'}
+                </h2>
+
+                <p>
+                  {hasFilters
+                    ? 'Try changing your search or filters.'
+                    : 'Create your first project to start organizing work.'}
+                </p>
+
+                {!hasFilters && (
+                  <Link
+                    href={`/organizations/${organizationId}/projects/new`}
+                    className={
+                      styles.createButton
+                    }
+                  >
+                    Create project
+                  </Link>
+                )}
+              </div>
+            )}
+
+          {hasProjects && (
+            <>
+              <div className={styles.grid}>
+                {projects.map(
+                  (project) => (
+                    <article
+                      key={project._id}
+                      className={styles.card}
+                    >
+                      <div
+                        className={
+                          styles.cardHeader
+                        }
+                      >
+                        <div
+                          className={
+                            styles.projectKey
+                          }
+                        >
+                          {project.key}
+                        </div>
+
+                        <span
+                          className={
+                            project.status ===
+                            'active'
+                              ? styles.active
+                              : styles.archived
+                          }
+                        >
+                          {project.status}
+                        </span>
+                      </div>
+
+                      <h2>{project.name}</h2>
+
+                      <p
+                        className={
+                          styles.description
+                        }
+                      >
+                        {project.description ||
+                          'No description provided.'}
+                      </p>
+
+                      <div
+                        className={
+                          styles.cardFooter
+                        }
+                      >
+                        <Link
+                          href={`/organizations/${organizationId}/projects/${project._id}`}
+                          className={
+                            styles.viewLink
+                          }
+                        >
+                          View project →
+                        </Link>
+
+                        <button
+                          type="button"
+                          className={
+                            styles.deleteButton
+                          }
+                          disabled={
+                            isDeleting
+                          }
+                          onClick={() =>
+                            handleDelete(
+                              project._id,
+                              project.name,
+                            )
+                          }
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </article>
+                  ),
+                )}
+              </div>
+
+              {/* Pagination is only shown when more than one page exists. */}
+              {pagination &&
+                pagination.totalPages >
+                  1 && (
+                  <nav
+                    className={
+                      styles.pagination
+                    }
+                    aria-label="Projects pagination"
+                  >
+                    <button
+                      type="button"
+                      className={
+                        styles.pageButton
+                      }
+                      disabled={
+                        page <= 1 ||
+                        isFetching
+                      }
+                      onClick={() =>
+                        setPage(
+                          (current) =>
+                            current - 1,
+                        )
+                      }
+                    >
+                      ← Previous
+                    </button>
+
+                    <span
+                      className={
+                        styles.pageInfo
+                      }
+                    >
+                      Page {pagination.page} of{' '}
+                      {
+                        pagination.totalPages
+                      }
+                    </span>
+
+                    <button
+                      type="button"
+                      className={
+                        styles.pageButton
+                      }
+                      disabled={
+                        page >=
+                          pagination.totalPages ||
+                        isFetching
+                      }
+                      onClick={() =>
+                        setPage(
+                          (current) =>
+                            current + 1,
+                        )
+                      }
+                    >
+                      Next →
+                    </button>
+                  </nav>
+                )}
+            </>
+          )}
+        </div>
+      </AppShell>
+    </ProtectedRoute>
+  );
+}
+
+============================================================
+FILE: apps/web/src/app/organizations/[organizationId]/tickets/[ticketId]/edit/page.tsx
+============================================================
+
+"use client";
+
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+import {
+  useGetTicketQuery,
+  useUpdateTicketMutation,
+} from "@/features/tickets/ticketsApi";
+
+import { useGetCustomersQuery } from "@/features/customers/customersApi";
+import { useGetProjectsQuery } from "@/features/projects/projectsApi";
+import { useGetOrganizationMembersQuery } from "@/features/organizations/organizationsApi";
+
+import { useNotification } from "@/components/notifications/NotificationContext";
+import { getApiErrorMessage } from "@/store/api/apiSlice";
+
+import styles from "./edit-ticket.module.scss";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { AppShell } from "@/components/layout/AppShell/AppShell";
+
+const ticketSchema = z.object({
+  title: z
+    .string()
+    .min(3, "Title must be at least 3 characters")
+    .max(200, "Title must not exceed 200 characters"),
+
+  description: z
+    .string()
+    .max(5000, "Description must not exceed 5000 characters"),
+
+  customerId: z.string().min(1, "Customer is required"),
+
+  projectId: z.string(),
+
+  assigneeId: z.string(),
+
+  status: z.enum(["open", "in_progress", "waiting", "resolved", "closed"]),
+
+  priority: z.enum(["low", "medium", "high", "urgent"]),
+});
+
+type TicketFormValues = z.infer<typeof ticketSchema>;
+
+export default function EditTicketPage() {
+  const params = useParams();
+  const router = useRouter();
+
+  const organizationId = params.organizationId as string;
+
+  const ticketId = params.ticketId as string;
+
+  const { success, error: showError } = useNotification();
+
+  // Backend errors are kept separately so we can
+  // display all validation messages inside the form.
+  const [apiError, setApiError] = useState<string[]>([]);
+
+  const {
+    data: ticketResponse,
+    isLoading: isLoadingTicket,
+    isError: isTicketError,
+  } = useGetTicketQuery({
+    organizationId,
+    ticketId,
+  });
+
+  const { data: customersResponse, isLoading: isLoadingCustomers } =
+    useGetCustomersQuery({
+      organizationId,
+    });
+
+  const { data: projectsResponse, isLoading: isLoadingProjects } =
+    useGetProjectsQuery({
+      organizationId,
+      query: {
+        page: 1,
+        limit: 50,
+        sortBy: "name",
+        sortOrder: "asc",
+      },
+    });
+
+  const { data: membersResponse, isLoading: isLoadingMembers } =
+    useGetOrganizationMembersQuery({
+      organizationId,
+      query: {
+        page: 1,
+        limit: 50,
+      },
+    });
+  const [updateTicket, { isLoading: isUpdating }] = useUpdateTicketMutation();
+
+  const ticket = ticketResponse?.data;
+  const customers = customersResponse?.data.items ?? [];
+  const projects = projectsResponse?.data.items ?? [];
+  const members = membersResponse?.data.items ?? [];
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<TicketFormValues>({
+    resolver: zodResolver(ticketSchema),
+
+    defaultValues: {
+      title: "",
+      description: "",
+      customerId: "",
+      projectId: "",
+      assigneeId: "",
+      status: "open",
+      priority: "medium",
+    },
+  });
+
+  useEffect(() => {
+    if (!ticket) {
+      return;
+    }
+
+    reset({
+      title: ticket.title,
+      description: ticket.description ?? "",
+
+      customerId:
+        typeof ticket.customerId === "object"
+          ? ticket.customerId._id
+          : ticket.customerId,
+
+      projectId:
+        typeof ticket.projectId === "object" && ticket.projectId !== null
+          ? ticket.projectId._id
+          : (ticket.projectId ?? ""),
+
+      assigneeId:
+        typeof ticket.assigneeId === "object" && ticket.assigneeId !== null
+          ? ticket.assigneeId._id
+          : (ticket.assigneeId ?? ""),
+
+      status: ticket.status,
+      priority: ticket.priority,
+    });
+
+    // Clear errors when the loaded ticket changes.
+    setApiError([]);
+  }, [ticket, reset]);
+
+  const onSubmit = async (values: TicketFormValues) => {
+    // Remove errors from the previous submission.
+    setApiError([]);
+
+    try {
+      await updateTicket({
+        organizationId,
+        ticketId,
+
+        data: {
+          title: values.title,
+          description: values.description,
+          customerId: values.customerId,
+          projectId: values.projectId || undefined,
+          assigneeId: values.assigneeId || undefined,
+          status: values.status,
+          priority: values.priority,
+        },
+      }).unwrap();
+
+      success("Ticket updated successfully.");
+
+      router.push(`/organizations/${organizationId}/tickets/${ticketId}`);
+    } catch (error) {
+      const messages = getApiErrorMessage(error);
+
+      console.error("Failed to update ticket:", error);
+
+      // Show all backend errors inside the form.
+      setApiError(messages);
+
+      // Show the first error as a toast.
+      showError(messages[0] ?? "Failed to update ticket.");
+    }
+  };
+
+  if (isLoadingTicket) {
+    return (
+      <ProtectedRoute>
+        <AppShell>
+          <div className={styles.state}>Loading ticket...</div>
+        </AppShell>
+      </ProtectedRoute>
+    );
+  }
+
+  if (isTicketError || !ticket) {
+    return (
+      <ProtectedRoute>
+        <AppShell>
+          <div className={`${styles.state} ${styles.error}`}>
+            Failed to load ticket.
+          </div>
+        </AppShell>
+      </ProtectedRoute>
+    );
+  }
+
+  return (
+    <ProtectedRoute>
+      <AppShell>
+        <div className={styles.page}>
+          <div className={styles.header}>
+            <div>
+              <Link
+                href={`/organizations/${organizationId}/tickets/${ticketId}`}
+                className={styles.backLink}
+              >
+                ← Back to Ticket
+              </Link>
+
+              <h1>Edit Ticket</h1>
+
+              <p>Update the ticket information.</p>
+            </div>
+          </div>
+
+          {apiError.length > 0 && (
+            <div className={styles.errorText}>
+              {apiError.map((message, index) => (
+                <p key={index}>{message}</p>
+              ))}
+            </div>
+          )}
+
+          <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+            <div className={styles.field}>
+              <label htmlFor="title">Title</label>
+
+              <input id="title" type="text" {...register("title")} />
+
+              {errors.title && (
+                <p className={styles.errorText}>{errors.title.message}</p>
+              )}
+            </div>
+
+            <div className={styles.field}>
+              <label htmlFor="description">Description</label>
+
+              <textarea
+                id="description"
+                rows={6}
+                {...register("description")}
+              />
+
+              {errors.description && (
+                <p className={styles.errorText}>{errors.description.message}</p>
+              )}
+            </div>
+
+            <div className={styles.field}>
+              <label htmlFor="customerId">Customer</label>
+
+              <select
+                id="customerId"
+                {...register("customerId")}
+                disabled={isLoadingCustomers}
+              >
+                <option value="">Select customer</option>
+
+                {customers.map((customer) => (
+                  <option key={customer._id} value={customer._id}>
+                    {customer.name}
+                    {customer.company ? ` — ${customer.company}` : ""}
+                  </option>
+                ))}
+              </select>
+
+              {errors.customerId && (
+                <p className={styles.errorText}>{errors.customerId.message}</p>
+              )}
+            </div>
+
+            <div className={styles.field}>
+              <label htmlFor="projectId">Project</label>
+
+              <select
+                id="projectId"
+                {...register("projectId")}
+                disabled={isLoadingProjects}
+              >
+                <option value="">No project</option>
+
+                {projects.map((project) => (
+                  <option key={project._id} value={project._id}>
+                    {project.key} — {project.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.field}>
+              <label htmlFor="assigneeId">Assignee</label>
+
+              <select
+                id="assigneeId"
+                {...register("assigneeId")}
+                disabled={isLoadingMembers}
+              >
+                <option value="">Unassigned</option>
+
+                {members.map((member) => (
+                  <option key={member.userId} value={member.userId}>
+                    {member.user?.name ?? member.userId}
+
+                    {member.user?.email ? ` — ${member.user.email}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.row}>
+              <div className={styles.field}>
+                <label htmlFor="status">Status</label>
+
+                <select id="status" {...register("status")}>
+                  <option value="open">Open</option>
+
+                  <option value="in_progress">In Progress</option>
+
+                  <option value="waiting">Waiting</option>
+
+                  <option value="resolved">Resolved</option>
+
+                  <option value="closed">Closed</option>
+                </select>
+              </div>
+
+              <div className={styles.field}>
+                <label htmlFor="priority">Priority</label>
+
+                <select id="priority" {...register("priority")}>
+                  <option value="low">Low</option>
+
+                  <option value="medium">Medium</option>
+
+                  <option value="high">High</option>
+
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+            </div>
+
+            <div className={styles.actions}>
+              <Link
+                href={`/organizations/${organizationId}/tickets/${ticketId}`}
+                className={styles.cancelButton}
+              >
+                Cancel
+              </Link>
+
+              <button
+                type="submit"
+                className={styles.saveButton}
+                disabled={isUpdating}
+              >
+                {isUpdating ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </AppShell>
+    </ProtectedRoute>
+  );
+}
+
+============================================================
+FILE: apps/web/src/app/organizations/[organizationId]/tickets/page.tsx
+============================================================
+
+'use client';
+
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+
+import {
+  useDeleteTicketMutation,
+  useGetTicketsQuery,
+  type TicketPriority,
+  type TicketSortBy,
+  type TicketSortOrder,
+  type TicketStatus,
+} from '@/features/tickets/ticketsApi';
+
+import styles from './tickets.module.scss';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { AppShell } from '@/components/layout/AppShell/AppShell';
+
+export default function TicketsPage() {
+  const params = useParams();
+
+  const organizationId = params.organizationId as string;
+
+  /*
+   * Search is split into two states.
+   *
+   * `searchInput` updates immediately as the user types.
+   * `search` is updated after a short delay so we do not
+   * send an API request for every individual keystroke.
+   */
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+
+  const [status, setStatus] =
+    useState<TicketStatus | ''>('');
+
+  const [priority, setPriority] =
+    useState<TicketPriority | ''>('');
+
+  const [sortBy, setSortBy] =
+    useState<TicketSortBy>('createdAt');
+
+  const [sortOrder, setSortOrder] =
+    useState<TicketSortOrder>('desc');
+
+  const [page, setPage] = useState(1);
+
+  /*
+   * The API supports a maximum page size of 50.
+   * Ten records keeps the list compact and easy to scan.
+   */
+  const limit = 10;
+
+  /*
+   * Debounce the search field so the backend receives
+   * the final search term rather than every keystroke.
+   */
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [searchInput]);
+
+  /*
+   * Any filter or sorting change starts from page one.
+   * Otherwise the user could remain on a page number that
+   * no longer exists after filtering.
+   */
+  useEffect(() => {
+    setPage(1);
+  }, [status, priority, sortBy, sortOrder]);
+
+  /*
+   * The ticket API now performs search, filtering, sorting,
+   * and pagination on the backend.
+   */
+  const {
+    data: ticketsResponse,
+    isLoading,
+    isFetching,
+    isError,
+  } = useGetTicketsQuery({
+    organizationId,
+    query: {
+      page,
+      limit,
+      search: search || undefined,
+      status: status || undefined,
+      priority: priority || undefined,
+      sortBy,
+      sortOrder,
+    },
+  });
+
+  /*
+   * The new API response contains:
+   *
+   * data.items       -> tickets for the current page
+   * data.pagination  -> total records and page information
+   */
+  const tickets =
+    ticketsResponse?.data.items ?? [];
+
+  const pagination =
+    ticketsResponse?.data.pagination;
+
+  const [deleteTicket, { isLoading: isDeleting }] =
+    useDeleteTicketMutation();
+
+  const handleDelete = async (ticketId: string) => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this ticket?',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteTicket({
+        organizationId,
+        ticketId,
+      }).unwrap();
+    } catch (error) {
+      console.error(
+        'Failed to delete ticket:',
+        error,
+      );
+
+      window.alert(
+        'Failed to delete ticket.',
+      );
+    }
+  };
+
+  /*
+   * Move to the requested page only when it is inside
+   * the range returned by the backend.
+   */
+  const handlePageChange = (nextPage: number) => {
+    if (
+      nextPage < 1 ||
+      nextPage > (pagination?.totalPages ?? 1)
+    ) {
+      return;
+    }
+
+    setPage(nextPage);
+  };
+
+  return (
+    <ProtectedRoute>
+      <AppShell>
+        <div className={styles.page}>
+          {/* Page heading and create-ticket action. */}
+          <div className={styles.header}>
+            <div>
+              <h1>Tickets</h1>
+
+              <p>
+                Manage customer support tickets for
+                this organization.
+              </p>
+            </div>
+
+            <Link
+              href={`/organizations/${organizationId}/tickets/new`}
+              className={styles.createButton}
+            >
+              + New Ticket
+            </Link>
+          </div>
+
+          {/* 
+           * Search, filtering, and sorting controls.
+           * These values are sent directly to the paginated API.
+           */}
+          <div className={styles.toolbar}>
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(event) =>
+                setSearchInput(event.target.value)
+              }
+              placeholder="Search tickets..."
+              className={styles.searchInput}
+            />
+
+            <select
+              value={status}
+              onChange={(event) =>
+                setStatus(
+                  event.target.value as
+                    | TicketStatus
+                    | '',
+                )
+              }
+              className={styles.select}
+            >
+              <option value="">
+                All statuses
+              </option>
+
+              <option value="open">
+                Open
+              </option>
+
+              <option value="in_progress">
+                In Progress
+              </option>
+
+              <option value="waiting">
+                Waiting
+              </option>
+
+              <option value="resolved">
+                Resolved
+              </option>
+
+              <option value="closed">
+                Closed
+              </option>
+            </select>
+
+            <select
+              value={priority}
+              onChange={(event) =>
+                setPriority(
+                  event.target.value as
+                    | TicketPriority
+                    | '',
+                )
+              }
+              className={styles.select}
+            >
+              <option value="">
+                All priorities
+              </option>
+
+              <option value="low">
+                Low
+              </option>
+
+              <option value="medium">
+                Medium
+              </option>
+
+              <option value="high">
+                High
+              </option>
+
+              <option value="urgent">
+                Urgent
+              </option>
+            </select>
+
+            <select
+              value={sortBy}
+              onChange={(event) =>
+                setSortBy(
+                  event.target.value as TicketSortBy,
+                )
+              }
+              className={styles.select}
+            >
+              <option value="createdAt">
+                Created
+              </option>
+
+              <option value="updatedAt">
+                Updated
+              </option>
+
+              <option value="title">
+                Title
+              </option>
+
+              <option value="status">
+                Status
+              </option>
+
+              <option value="priority">
+                Priority
+              </option>
+            </select>
+
+            <select
+              value={sortOrder}
+              onChange={(event) =>
+                setSortOrder(
+                  event.target.value as TicketSortOrder,
+                )
+              }
+              className={styles.select}
+            >
+              <option value="desc">
+                Descending
+              </option>
+
+              <option value="asc">
+                Ascending
+              </option>
+            </select>
+          </div>
+
+          {/* 
+           * Shows result count and gives visual feedback while
+           * a new search/filter request is being fetched.
+           */}
+          {!isLoading && !isError && pagination && (
+            <div className={styles.resultBar}>
+              <span>
+                {pagination.total}{' '}
+                {pagination.total === 1
+                  ? 'ticket'
+                  : 'tickets'}
+              </span>
+
+              {isFetching && (
+                <span>
+                  Updating...
+                </span>
+              )}
+            </div>
+          )}
+
+          {isLoading && (
+            <div className={styles.state}>
+              Loading tickets...
+            </div>
+          )}
+
+          {isError && (
+            <div
+              className={`${styles.state} ${styles.error}`}
+            >
+              Failed to load tickets.
+            </div>
+          )}
+
+          {/* 
+           * Empty state covers both a completely empty organization
+           * and a search/filter combination with no matching tickets.
+           */}
+          {!isLoading &&
+            !isError &&
+            tickets.length === 0 && (
+              <div className={styles.empty}>
+                <h2>
+                  {search ||
+                  status ||
+                  priority
+                    ? 'No matching tickets'
+                    : 'No tickets yet'}
+                </h2>
+
+                <p>
+                  {search ||
+                  status ||
+                  priority
+                    ? 'Try changing your search or filters.'
+                    : 'Create your first support ticket to get started.'}
+                </p>
+
+                {!search &&
+                  !status &&
+                  !priority && (
+                    <Link
+                      href={`/organizations/${organizationId}/tickets/new`}
+                      className={styles.createButton}
+                    >
+                      Create Ticket
+                    </Link>
+                  )}
+              </div>
+            )}
+
+          {!isLoading &&
+            !isError &&
+            tickets.length > 0 && (
+              <>
+                {/* Ticket results table. */}
+                <div className={styles.tableWrapper}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Title</th>
+                        <th>Customer</th>
+                        <th>Project</th>
+                        <th>Assignee</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {tickets.map((ticket) => {
+                        /*
+                         * The backend populates these relationships,
+                         * but the API type also allows an ID string.
+                         * We therefore safely check the runtime shape.
+                         */
+                        const customer =
+                          typeof ticket.customerId ===
+                          'object'
+                            ? ticket.customerId
+                            : null;
+
+                        const project =
+                          typeof ticket.projectId ===
+                          'object'
+                            ? ticket.projectId
+                            : null;
+
+                        const assignee =
+                          typeof ticket.assigneeId ===
+                          'object'
+                            ? ticket.assigneeId
+                            : null;
+
+                        return (
+                          <tr key={ticket._id}>
+                            <td>
+                              <Link
+                                href={`/organizations/${organizationId}/tickets/${ticket._id}`}
+                                className={
+                                  styles.ticketTitle
+                                }
+                              >
+                                {ticket.title}
+                              </Link>
+                            </td>
+
+                            <td>
+                              {customer?.name ??
+                                '—'}
+                            </td>
+
+                            <td>
+                              {project
+                                ? `${project.key} — ${project.name}`
+                                : '—'}
+                            </td>
+
+                            <td>
+                              {assignee?.name ??
+                                'Unassigned'}
+                            </td>
+
+                            <td>
+                              <span
+                                className={`${styles.badge} ${styles[`status_${ticket.status}`]}`}
+                              >
+                                {ticket.status.replace(
+                                  '_',
+                                  ' ',
+                                )}
+                              </span>
+                            </td>
+
+                            <td>
+                              <span
+                                className={`${styles.badge} ${styles[`priority_${ticket.priority}`]}`}
+                              >
+                                {ticket.priority}
+                              </span>
+                            </td>
+
+                            <td>
+                              {new Date(
+                                ticket.createdAt,
+                              ).toLocaleDateString()}
+                            </td>
+
+                            <td>
+                              <div
+                                className={
+                                  styles.actions
+                                }
+                              >
+                                <Link
+                                  href={`/organizations/${organizationId}/tickets/${ticket._id}`}
+                                  className={
+                                    styles.viewButton
+                                  }
+                                >
+                                  View
+                                </Link>
+
+                                <button
+                                  type="button"
+                                  className={
+                                    styles.deleteButton
+                                  }
+                                  disabled={
+                                    isDeleting
+                                  }
+                                  onClick={() =>
+                                    handleDelete(
+                                      ticket._id,
+                                    )
+                                  }
+                                >
+                                  {isDeleting
+                                    ? 'Deleting...'
+                                    : 'Delete'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 
+                 * Pagination is driven by backend metadata rather
+                 * than calculating pages from the currently loaded rows.
+                 */}
+                {pagination &&
+                  pagination.totalPages > 1 && (
+                    <div
+                      className={styles.pagination}
+                    >
+                      <button
+                        type="button"
+                        className={
+                          styles.paginationButton
+                        }
+                        disabled={page === 1}
+                        onClick={() =>
+                          handlePageChange(
+                            page - 1,
+                          )
+                        }
+                      >
+                        Previous
+                      </button>
+
+                      <span
+                        className={
+                          styles.pageInfo
+                        }
+                      >
+                        Page {pagination.page} of{' '}
+                        {pagination.totalPages}
+                      </span>
+
+                      <button
+                        type="button"
+                        className={
+                          styles.paginationButton
+                        }
+                        disabled={
+                          page ===
+                          pagination.totalPages
+                        }
+                        onClick={() =>
+                          handlePageChange(
+                            page + 1,
+                          )
+                        }
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+              </>
+            )}
+        </div>
+      </AppShell>
+    </ProtectedRoute>
+  );
+}
+
+============================================================
+FILE: apps/web/src/app/organizations/page.tsx
+============================================================
+
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+
+import { AppShell } from '@/components/layout/AppShell/AppShell';
+
+import {
+  useGetOrganizationsQuery,
+  type OrganizationSortBy,
+  type OrganizationSortOrder,
+  type OrganizationStatus,
+} from '@/features/organizations/organizationsApi';
+
+import styles from './organizations.module.scss';
+
+export default function OrganizationsPage() {
+  /*
+   * Keep the text the user is currently typing separate from
+   * the value sent to the API. This lets us debounce searches.
+   */
+  const [searchInput, setSearchInput] =
+    useState('');
+
+  const [search, setSearch] =
+    useState('');
+
+  const [status, setStatus] =
+    useState<OrganizationStatus | ''>('');
+
+  const [sortBy, setSortBy] =
+    useState<OrganizationSortBy>(
+      'createdAt',
+    );
+
+  const [sortOrder, setSortOrder] =
+    useState<OrganizationSortOrder>(
+      'desc',
+    );
+
+  const [page, setPage] =
+    useState(1);
+
+  /*
+   * The backend limits one request to 50 records.
+   * Ten organizations per page keeps the launcher easy to scan.
+   */
+  const limit = 10;
+
+  /*
+   * Debounce organization search to avoid making an
+   * API request for every character typed.
+   */
+  useEffect(() => {
+    const timer =
+      window.setTimeout(() => {
+        setSearch(
+          searchInput.trim(),
+        );
+
+        setPage(1);
+      }, 400);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [searchInput]);
+
+  /*
+   * Changing a filter or sort order should always return
+   * the user to the first result page.
+   */
+  useEffect(() => {
+    setPage(1);
+  }, [
+    status,
+    sortBy,
+    sortOrder,
+  ]);
+
+  /*
+   * Search, filtering, sorting, and pagination are now
+   * performed by the NestJS backend.
+   */
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isError,
+  } = useGetOrganizationsQuery({
+    query: {
+      page,
+      limit,
+      search:
+        search || undefined,
+      status:
+        status || undefined,
+      sortBy,
+      sortOrder,
+    },
+  });
+
+  /*
+   * The new response contains the current page's items
+   * and pagination metadata.
+   */
+  const organizations =
+    data?.data.items ?? [];
+
+  const pagination =
+    data?.data.pagination;
+
+  const handlePageChange = (
+    nextPage: number,
+  ) => {
+    if (
+      nextPage < 1 ||
+      nextPage >
+        (pagination?.totalPages ?? 1)
+    ) {
+      return;
+    }
+
+    setPage(nextPage);
+  };
+
+  return (
+    <AppShell>
+      <div className={styles.page}>
+        {/* Page heading and organization creation action. */}
+        <div className={styles.header}>
+          <div>
+            <h1>Organizations</h1>
+
+            <p>
+              Manage your OpsFlow
+              organizations.
+            </p>
+          </div>
+
+          <Link
+            href="/organizations/new"
+            className={
+              styles.createButton
+            }
+          >
+            + New Organization
+          </Link>
+        </div>
+
+        {/* 
+         * Server-side search, filtering, and sorting controls.
+         */}
+        <div className={styles.toolbar}>
+          <input
+            type="search"
+            value={searchInput}
+            onChange={(event) =>
+              setSearchInput(
+                event.target.value,
+              )
+            }
+            placeholder="Search organizations..."
+            className={
+              styles.searchInput
+            }
+          />
+
+          <select
+            value={status}
+            onChange={(event) =>
+              setStatus(
+                event.target.value as
+                  | OrganizationStatus
+                  | '',
+              )
+            }
+            className={styles.select}
+          >
+            <option value="">
+              All statuses
+            </option>
+
+            <option value="active">
+              Active
+            </option>
+
+            <option value="suspended">
+              Suspended
+            </option>
+          </select>
+
+          <select
+            value={sortBy}
+            onChange={(event) =>
+              setSortBy(
+                event.target.value as
+                  OrganizationSortBy,
+              )
+            }
+            className={styles.select}
+          >
+            <option value="createdAt">
+              Created
+            </option>
+
+            <option value="updatedAt">
+              Updated
+            </option>
+
+            <option value="name">
+              Name
+            </option>
+
+            <option value="slug">
+              Slug
+            </option>
+
+            <option value="status">
+              Status
+            </option>
+          </select>
+
+          <select
+            value={sortOrder}
+            onChange={(event) =>
+              setSortOrder(
+                event.target.value as
+                  OrganizationSortOrder,
+              )
+            }
+            className={styles.select}
+          >
+            <option value="desc">
+              Descending
+            </option>
+
+            <option value="asc">
+              Ascending
+            </option>
+          </select>
+        </div>
+
+        {/* Result count and background refresh indicator. */}
+        {!isLoading &&
+          !isError &&
+          pagination && (
+            <div
+              className={
+                styles.resultBar
+              }
+            >
+              <span>
+                {pagination.total}{' '}
+                {pagination.total === 1
+                  ? 'organization'
+                  : 'organizations'}
+              </span>
+
+              {isFetching && (
+                <span>
+                  Updating...
+                </span>
+              )}
+            </div>
+          )}
+
+        {isLoading && (
+          <div className={styles.state}>
+            Loading organizations...
+          </div>
+        )}
+
+        {isError && (
+          <div
+            className={`${styles.state} ${styles.error}`}
+          >
+            Unable to load
+            organizations.
+          </div>
+        )}
+
+        {/* 
+         * Empty state handles both a completely empty
+         * organization list and a search/filter with no results.
+         */}
+        {!isLoading &&
+          !isError &&
+          organizations.length === 0 && (
+            <div
+              className={styles.empty}
+            >
+              <h2>
+                {search || status
+                  ? 'No matching organizations'
+                  : 'No organizations yet'}
+              </h2>
+
+              <p>
+                {search || status
+                  ? 'Try changing your search or filters.'
+                  : 'Create your first organization to get started.'}
+              </p>
+
+              {!search &&
+                !status && (
+                  <Link
+                    href="/organizations/new"
+                    className={
+                      styles.createButton
+                    }
+                  >
+                    Create Organization
+                  </Link>
+                )}
+            </div>
+          )}
+
+        {!isLoading &&
+          !isError &&
+          organizations.length >
+            0 && (
+            <>
+              {/* Organization cards. */}
+              <div
+                className={styles.grid}
+              >
+                {organizations.map(
+                  (organization) => (
+                    <Link
+                      key={
+                        organization._id
+                      }
+                      href={`/organizations/${organization._id}`}
+                      className={
+                        styles.card
+                      }
+                    >
+                      <h2>
+                        {
+                          organization.name
+                        }
+                      </h2>
+
+                      <p>
+                        {
+                          organization.slug
+                        }
+                      </p>
+
+                      <span
+                        className={`${styles.status} ${styles[organization.status]}`}
+                      >
+                        {
+                          organization.status
+                        }
+                      </span>
+                    </Link>
+                  ),
+                )}
+              </div>
+
+              {/* 
+               * Pagination is based on the total count returned
+               * by MongoDB rather than the current page length.
+               */}
+              {pagination &&
+                pagination.totalPages >
+                  1 && (
+                  <div
+                    className={
+                      styles.pagination
+                    }
+                  >
+                    <button
+                      type="button"
+                      className={
+                        styles.paginationButton
+                      }
+                      disabled={
+                        page === 1
+                      }
+                      onClick={() =>
+                        handlePageChange(
+                          page - 1,
+                        )
+                      }
+                    >
+                      Previous
+                    </button>
+
+                    <span
+                      className={
+                        styles.pageInfo
+                      }
+                    >
+                      Page {pagination.page}{' '}
+                      of{' '}
+                      {
+                        pagination.totalPages
+                      }
+                    </span>
+
+                    <button
+                      type="button"
+                      className={
+                        styles.paginationButton
+                      }
+                      disabled={
+                        page ===
+                        pagination.totalPages
+                      }
+                      onClick={() =>
+                        handlePageChange(
+                          page + 1,
+                        )
+                      }
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+            </>
+          )}
+      </div>
+    </AppShell>
+  );
+}
+
+============================================================
+FILE: apps/web/src/features/customers/EditCustomerForm.tsx
+============================================================
+
+'use client';
+
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+
+import {
+  useNotification,
+} from '@/components/notifications/NotificationContext';
+import { getApiErrorMessage } from '@/store/api/apiSlice';
+
+import {
+  Customer,
+  useUpdateCustomerMutation,
+} from './customersApi';
+
+import styles from './EditCustomerForm.module.scss';
+
+/*
+ * Zod schema defines the validation rules for the
+ * customer edit form before the request reaches the API.
+ */
+const customerSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, 'Name must be at least 2 characters')
+    .max(200, 'Name cannot exceed 200 characters'),
+
+  email: z
+    .string()
+    .trim()
+    .email('Enter a valid email address'),
+
+  phone: z
+    .string()
+    .trim()
+    .max(30, 'Phone number cannot exceed 30 characters')
+    .optional()
+    .or(z.literal('')),
+
+  company: z
+    .string()
+    .trim()
+    .max(200, 'Company cannot exceed 200 characters')
+    .optional()
+    .or(z.literal('')),
+
+  notes: z
+    .string()
+    .trim()
+    .max(5000, 'Notes cannot exceed 5000 characters')
+    .optional()
+    .or(z.literal('')),
+
+  status: z.enum(['active', 'inactive']),
+});
+
+type CustomerFormValues = z.infer<typeof customerSchema>;
+
+interface EditCustomerFormProps {
+  organizationId: string;
+  customer: Customer;
+
+  // Parent component decides what should happen
+  // after a successful update.
+  onSuccess: () => void;
+}
+
+export default function EditCustomerForm({
+  organizationId,
+  customer,
+  onSuccess,
+}: EditCustomerFormProps) {
+  /*
+   * Global notification functions allow this form to
+   * display success/error messages consistently across
+   * the entire OpsFlow application.
+   */
+  const {
+    success,
+    error: showError,
+  } = useNotification();
+
+  /*
+   * RTK Query mutation used to update the customer.
+   */
+  const [updateCustomer, { isLoading }] =
+    useUpdateCustomerMutation();
+
+  /*
+   * API errors are kept separately from React Hook Form
+   * validation errors.
+   *
+   * Example:
+   * Backend may return multiple validation messages.
+   */
+  const [apiError, setApiError] = useState<string[]>([]);
+
+  /*
+   * React Hook Form manages the form fields and
+   * client-side Zod validation.
+   */
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerSchema),
+  });
+
+  /*
+   * Whenever a different customer is loaded into this
+   * form, populate the form with that customer's data.
+   */
+  useEffect(() => {
+    reset({
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone ?? '',
+      company: customer.company ?? '',
+      notes: customer.notes ?? '',
+      status: customer.status,
+    });
+
+    // Clear any previous API error when switching customers.
+    setApiError([]);
+  }, [customer, reset]);
+
+  /*
+   * Submit the edited customer to the NestJS API.
+   */
+  const onSubmit = async (values: CustomerFormValues) => {
+    // Remove errors from a previous failed submission.
+    setApiError([]);
+
+    try {
+      /*
+       * RTK Query sends the PATCH request to the backend.
+       *
+       * unwrap() makes the mutation behave like a normal
+       * promise and throws when the API returns an error.
+       */
+      await updateCustomer({
+        organizationId,
+        customerId: customer._id,
+
+        data: {
+          name: values.name,
+          email: values.email,
+          phone: values.phone || undefined,
+          company: values.company || undefined,
+          notes: values.notes || undefined,
+          status: values.status,
+        },
+      }).unwrap();
+
+      /*
+       * Show a global success notification instead of
+       * relying only on the UI changing silently.
+       */
+      success('Customer updated successfully.');
+
+      /*
+       * Tell the parent component that the update succeeded.
+       * The parent can then close the form/modal or refresh
+       * the customer details.
+       */
+      onSuccess();
+    } catch (error) {
+      /*
+       * Convert the backend error response into the same
+       * string[] format used by CreateCustomerForm.
+       */
+      const messages = getApiErrorMessage(error);
+
+      console.error(
+        'Failed to update customer:',
+        error,
+      );
+
+      /*
+       * Keep detailed API errors visible inside the form.
+       */
+      setApiError(messages);
+
+      /*
+       * Also provide a global notification so the user gets
+       * immediate feedback.
+       */
+      showError(
+        messages[0] ?? 'Failed to update customer.',
+      );
+    }
+  };
+
+  return (
+    <form
+      className={styles.form}
+      onSubmit={handleSubmit(onSubmit)}
+    >
+      {/* Display backend/API errors above the form. */}
+      {apiError.length > 0 && (
+        <div className={styles.error}>
+          {apiError.map((message, index) => (
+            <p key={index}>{message}</p>
+          ))}
+        </div>
+      )}
+
+      {/* Customer name */}
+      <div className={styles.field}>
+        <label htmlFor="name">
+          Name
+        </label>
+
+        <input
+          id="name"
+          {...register('name')}
+        />
+
+        {errors.name && (
+          <p className={styles.error}>
+            {errors.name.message}
+          </p>
+        )}
+      </div>
+
+      {/* Customer email */}
+      <div className={styles.field}>
+        <label htmlFor="email">
+          Email
+        </label>
+
+        <input
+          id="email"
+          type="email"
+          {...register('email')}
+        />
+
+        {errors.email && (
+          <p className={styles.error}>
+            {errors.email.message}
+          </p>
+        )}
+      </div>
+
+      {/* Customer phone */}
+      <div className={styles.field}>
+        <label htmlFor="phone">
+          Phone
+        </label>
+
+        <input
+          id="phone"
+          {...register('phone')}
+        />
+
+        {errors.phone && (
+          <p className={styles.error}>
+            {errors.phone.message}
+          </p>
+        )}
+      </div>
+
+      {/* Customer company */}
+      <div className={styles.field}>
+        <label htmlFor="company">
+          Company
+        </label>
+
+        <input
+          id="company"
+          {...register('company')}
+        />
+
+        {errors.company && (
+          <p className={styles.error}>
+            {errors.company.message}
+          </p>
+        )}
+      </div>
+
+      {/* Customer notes */}
+      <div className={styles.field}>
+        <label htmlFor="notes">
+          Notes
+        </label>
+
+        <textarea
+          id="notes"
+          rows={5}
+          {...register('notes')}
+        />
+
+        {errors.notes && (
+          <p className={styles.error}>
+            {errors.notes.message}
+          </p>
+        )}
+      </div>
+
+      {/* Customer active/inactive status */}
+      <div className={styles.field}>
+        <label htmlFor="status">
+          Status
+        </label>
+
+        <select
+          id="status"
+          {...register('status')}
+        >
+          <option value="active">
+            Active
+          </option>
+
+          <option value="inactive">
+            Inactive
+          </option>
+        </select>
+
+        {errors.status && (
+          <p className={styles.error}>
+            {errors.status.message}
+          </p>
+        )}
+      </div>
+
+      {/* Form submission */}
+      <div className={styles.actions}>
+        <button
+          type="submit"
+          className={styles.submitButton}
+          disabled={isLoading}
+        >
+          {isLoading
+            ? 'Saving...'
+            : 'Save Changes'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+============================================================
+FILE: apps/web/src/features/projects/EditProjectForm.tsx
+============================================================
+
+'use client';
+
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+
+import {
+  useNotification,
+} from '@/components/notifications/NotificationContext';
+import { getApiErrorMessage } from '@/store/api/apiSlice';
+
+import {
+  Project,
+  useUpdateProjectMutation,
+} from './projectsApi';
+
+import styles from './EditProjectForm.module.scss';
+
+const editProjectSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, 'Project name must be at least 2 characters')
+    .max(100, 'Project name cannot exceed 100 characters'),
+
+  key: z
+    .string()
+    .trim()
+    .min(2, 'Project key must be at least 2 characters')
+    .max(20, 'Project key cannot exceed 20 characters')
+    .regex(
+      /^[a-zA-Z0-9_-]+$/,
+      'Project key can contain letters, numbers, hyphens and underscores',
+    ),
+
+  description: z
+    .string()
+    .max(1000, 'Description cannot exceed 1000 characters'),
+
+  status: z.enum(['active', 'archived']),
+});
+
+type EditProjectFormValues = z.infer<
+  typeof editProjectSchema
+>;
+
+interface EditProjectFormProps {
+  organizationId: string;
+  project: Project;
+}
+
+export default function EditProjectForm({
+  organizationId,
+  project,
+}: EditProjectFormProps) {
+  const router = useRouter();
+
+  /*
+   * Global notifications provide immediate feedback after
+   * successful updates or API failures.
+   */
+  const {
+    success,
+    error: showError,
+  } = useNotification();
+
+  /*
+   * Backend errors are also displayed inside the form so
+   * validation or business-rule failures are visible even
+   * after the toast disappears.
+   */
+  const [apiError, setApiError] = useState<string[]>(
+    [],
+  );
+
+  const [updateProject, { isLoading }] =
+    useUpdateProjectMutation();
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<EditProjectFormValues>({
+    resolver: zodResolver(editProjectSchema),
+  });
+
+  /*
+   * Populate the form whenever the selected project changes.
+   *
+   * Clearing API errors here prevents an old error from one
+   * project from appearing while editing another project.
+   */
+  useEffect(() => {
+    reset({
+      name: project.name,
+      key: project.key,
+      description: project.description ?? '',
+      status: project.status,
+    });
+
+    setApiError([]);
+  }, [project, reset]);
+
+  const onSubmit = async (
+    values: EditProjectFormValues,
+  ) => {
+    /*
+     * Clear errors from the previous submission.
+     */
+    setApiError([]);
+
+    try {
+      await updateProject({
+        organizationId,
+        projectId: project._id,
+        data: {
+          name: values.name.trim(),
+          key: values.key.trim().toUpperCase(),
+          description: values.description.trim(),
+          status: values.status,
+        },
+      }).unwrap();
+
+      /*
+       * Tell the user that the update completed before
+       * navigating back to the project details page.
+       */
+      success('Project updated successfully.');
+
+      router.push(
+        `/organizations/${organizationId}/projects/${project._id}`,
+      );
+    } catch (error) {
+      /*
+       * Convert the standard OpsFlow API error response
+       * into messages that can be displayed by the UI.
+       */
+      const messages =
+        getApiErrorMessage(error);
+
+      console.error(
+        'Failed to update project:',
+        error,
+      );
+
+      /*
+       * Display all backend errors inside the form.
+       */
+      setApiError(messages);
+
+      /*
+       * Show the first error globally as a toast.
+       */
+      showError(
+        messages[0] ??
+          'Failed to update project.',
+      );
+    }
+  };
+
+  return (
+    <form
+      className={styles.form}
+      onSubmit={handleSubmit(onSubmit)}
+    >
+      {/* Backend/API errors */}
+      {apiError.length > 0 && (
+        <div className={styles.error}>
+          {apiError.map(
+            (message, index) => (
+              <p key={index}>
+                {message}
+              </p>
+            ),
+          )}
+        </div>
+      )}
+
+      <div className={styles.field}>
+        <label htmlFor="name">
+          Project name
+        </label>
+
+        <input
+          id="name"
+          type="text"
+          {...register('name')}
+        />
+
+        {errors.name && (
+          <p className={styles.error}>
+            {errors.name.message}
+          </p>
+        )}
+      </div>
+
+      <div className={styles.field}>
+        <label htmlFor="key">
+          Project key
+        </label>
+
+        <input
+          id="key"
+          type="text"
+          maxLength={20}
+          {...register('key')}
+        />
+
+        {errors.key && (
+          <p className={styles.error}>
+            {errors.key.message}
+          </p>
+        )}
+      </div>
+
+      <div className={styles.field}>
+        <label htmlFor="description">
+          Description
+        </label>
+
+        <textarea
+          id="description"
+          rows={7}
+          {...register('description')}
+        />
+
+        {errors.description && (
+          <p className={styles.error}>
+            {errors.description.message}
+          </p>
+        )}
+      </div>
+
+      <div className={styles.field}>
+        <label htmlFor="status">
+          Status
+        </label>
+
+        <select
+          id="status"
+          {...register('status')}
+        >
+          <option value="active">
+            Active
+          </option>
+
+          <option value="archived">
+            Archived
+          </option>
+        </select>
+
+        {errors.status && (
+          <p className={styles.error}>
+            {errors.status.message}
+          </p>
+        )}
+      </div>
+
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.secondaryButton}
+          disabled={isLoading}
+          onClick={() =>
+            router.push(
+              `/organizations/${organizationId}/projects/${project._id}`,
+            )
+          }
+        >
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          className={styles.primaryButton}
+          disabled={isLoading}
+        >
+          {isLoading
+            ? 'Saving...'
+            : 'Save changes'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+============================================================
+FILE: apps/web/src/features/tasks/EditTaskForm.tsx
+============================================================
+
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+
+import { useNotification } from "@/components/notifications/NotificationContext";
+import { getApiErrorMessage } from "@/store/api/apiSlice";
+
+import { useUpdateTaskMutation, type Task } from "./tasksApi";
+
+import { useGetOrganizationMembersQuery } from "../organizations/organizationsApi";
+
+import styles from "./EditTaskForm.module.scss";
+
+const editTaskSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(2, "Title must be at least 2 characters")
+    .max(200, "Title cannot exceed 200 characters"),
+
+  description: z
+    .string()
+    .max(5000, "Description cannot exceed 5000 characters")
+    .optional(),
+
+  assigneeId: z.string().optional(),
+
+  status: z.enum(["todo", "in_progress", "review", "done"]),
+
+  priority: z.enum(["low", "medium", "high", "urgent"]),
+
+  dueDate: z.string().optional(),
+});
+
+type EditTaskFormValues = z.infer<typeof editTaskSchema>;
+
+interface EditTaskFormProps {
+  organizationId: string;
+  projectId: string;
+  task: Task;
+}
+
+export default function EditTaskForm({
+  organizationId,
+  projectId,
+  task,
+}: EditTaskFormProps) {
+  const router = useRouter();
+
+  const { success, error: showError } = useNotification();
+
+  // Stores backend validation/API errors so they are
+  // visible inside the form as well as in the toast.
+  const [apiError, setApiError] = useState<string[]>([]);
+
+  const [updateTask, { isLoading }] = useUpdateTaskMutation();
+
+  const {
+  data: membersResponse,
+  isLoading: membersLoading,
+} = useGetOrganizationMembersQuery({
+  organizationId,
+  query: {
+    page: 1,
+    limit: 10,
+  },
+});
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<EditTaskFormValues>({
+    resolver: zodResolver(editTaskSchema),
+  });
+
+  useEffect(() => {
+    let assigneeId = "";
+
+    if (task.assigneeId && typeof task.assigneeId === "object") {
+      assigneeId = task.assigneeId._id;
+    } else if (typeof task.assigneeId === "string") {
+      assigneeId = task.assigneeId;
+    }
+
+    reset({
+      title: task.title,
+      description: task.description || "",
+      assigneeId,
+      status: task.status,
+      priority: task.priority,
+      dueDate: task.dueDate ? task.dueDate.slice(0, 10) : "",
+    });
+
+    // Clear stale API errors when a different task
+    // is loaded into the form.
+    setApiError([]);
+  }, [task, reset]);
+
+  const onSubmit = async (values: EditTaskFormValues) => {
+    // Remove errors from the previous submission.
+    setApiError([]);
+
+    try {
+      await updateTask({
+        organizationId,
+        projectId,
+        taskId: task._id,
+        data: {
+          title: values.title,
+          description: values.description || undefined,
+          assigneeId: values.assigneeId || undefined,
+          status: values.status,
+          priority: values.priority,
+          dueDate: values.dueDate || undefined,
+        },
+      }).unwrap();
+
+      success("Task updated successfully.");
+
+      router.push(
+        `/organizations/${organizationId}/projects/${projectId}/tasks/${task._id}`,
+      );
+    } catch (error) {
+      const messages = getApiErrorMessage(error);
+
+      console.error("Failed to update task:", error);
+
+      // Show all backend validation errors inside
+      // the form and the first one as a toast.
+      setApiError(messages);
+
+      showError(messages[0] ?? "Failed to update task.");
+    }
+  };
+
+  const members = membersResponse?.data.items ?? [];
+
+  return (
+    <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+      {apiError.length > 0 && (
+        <div className={styles.error}>
+          {apiError.map((message, index) => (
+            <p key={index}>{message}</p>
+          ))}
+        </div>
+      )}
+
+      <div className={styles.field}>
+        <label htmlFor="title">Task title</label>
+
+        <input id="title" type="text" {...register("title")} />
+
+        {errors.title && <p className={styles.error}>{errors.title.message}</p>}
+      </div>
+
+      <div className={styles.field}>
+        <label htmlFor="description">Description</label>
+
+        <textarea id="description" rows={7} {...register("description")} />
+
+        {errors.description && (
+          <p className={styles.error}>{errors.description.message}</p>
+        )}
+      </div>
+
+      <div className={styles.row}>
+        <div className={styles.field}>
+          <label htmlFor="status">Status</label>
+
+          <select id="status" {...register("status")}>
+            <option value="todo">To Do</option>
+
+            <option value="in_progress">In Progress</option>
+
+            <option value="review">Review</option>
+
+            <option value="done">Done</option>
+          </select>
+        </div>
+
+        <div className={styles.field}>
+          <label htmlFor="priority">Priority</label>
+
+          <select id="priority" {...register("priority")}>
+            <option value="low">Low</option>
+
+            <option value="medium">Medium</option>
+
+            <option value="high">High</option>
+
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+      </div>
+
+      <div className={styles.row}>
+        <div className={styles.field}>
+          <label htmlFor="assigneeId">Assignee</label>
+
+          <select
+            id="assigneeId"
+            {...register("assigneeId")}
+            disabled={membersLoading}
+          >
+            <option value="">Unassigned</option>
+
+            {members.map((member) => (
+              <option key={member.userId} value={member.userId}>
+                {member.user?.name ?? member.userId}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className={styles.field}>
+          <label htmlFor="dueDate">Due date</label>
+
+          <input id="dueDate" type="date" {...register("dueDate")} />
+        </div>
+      </div>
+
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.cancelButton}
+          onClick={() => router.back()}
+          disabled={isLoading}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          className={styles.submitButton}
+          disabled={isLoading}
+        >
+          {isLoading ? "Saving..." : "Save Changes"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+============================================================
+FILE: apps/web/src/features/organizations/AddOrganizationMemberForm.tsx
+============================================================
+
+'use client';
+
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+
+import {
+  useAddOrganizationMemberMutation,
+} from './organizationsApi';
+
+import styles from './AddOrganizationMemberForm.module.scss';
+
+const addMemberSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .email('Please enter a valid email address'),
+
+  /*
+   * Owners cannot be assigned through the normal
+   * "Add Member" workflow.
+   *
+   * OrganizationRole may include "owner", but this form
+   * intentionally permits only the roles that an existing
+   * organization member can be assigned.
+   */
+  role: z.enum([
+    'admin',
+    'member',
+  ]),
+});
+
+type AddMemberFormValues =
+  z.infer<typeof addMemberSchema>;
+
+interface AddOrganizationMemberFormProps {
+  organizationId: string;
+  onSuccess: () => void;
+}
+
+export function AddOrganizationMemberForm({
+  organizationId,
+  onSuccess,
+}: AddOrganizationMemberFormProps) {
+  const [
+    addMember,
+    { isLoading },
+  ] = useAddOrganizationMemberMutation();
+
+  const {
+    register,
+    handleSubmit,
+    formState: {
+      errors,
+    },
+    setError,
+  } = useForm<AddMemberFormValues>({
+    resolver: zodResolver(addMemberSchema),
+    defaultValues: {
+      email: '',
+      role: 'member',
+    },
+  });
+
+  const onSubmit = async (
+    values: AddMemberFormValues,
+  ) => {
+    try {
+      await addMember({
+        organizationId,
+        data: {
+          email: values.email,
+          /*
+           * AddMemberFormValues.role is already a valid
+           * subset of the backend's OrganizationRole type.
+           *
+           * No type assertion is necessary.
+           */
+          role: values.role,
+        },
+      }).unwrap();
+
+      onSuccess();
+    } catch (error: any) {
+      console.error(
+        'Failed to add organization member:',
+        error,
+      );
+
+      const message =
+        error?.data?.message ??
+        'Failed to add member. Please try again.';
+
+      setError('root', {
+        message,
+      });
+    }
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className={styles.form}
+    >
+      <div className={styles.field}>
+        <label htmlFor="email">
+          Email address
+        </label>
+
+        <input
+          id="email"
+          type="email"
+          placeholder="user@example.com"
+          {...register('email')}
+        />
+
+        {errors.email && (
+          <p className={styles.error}>
+            {errors.email.message}
+          </p>
+        )}
+      </div>
+
+      <div className={styles.field}>
+        <label htmlFor="role">
+          Role
+        </label>
+
+        <select
+          id="role"
+          {...register('role')}
+        >
+          <option value="member">
+            Member
+          </option>
+
+          <option value="admin">
+            Admin
+          </option>
+        </select>
+
+        {errors.role && (
+          <p className={styles.error}>
+            {errors.role.message}
+          </p>
+        )}
+      </div>
+
+      {errors.root && (
+        <div className={styles.formError}>
+          {errors.root.message}
+        </div>
+      )}
+
+      <div className={styles.actions}>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className={styles.submitButton}
+        >
+          {isLoading
+            ? 'Adding...'
+            : 'Add Member'}
+        </button>
+      </div>
+    </form>
+  );
+}

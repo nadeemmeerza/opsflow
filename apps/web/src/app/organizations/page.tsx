@@ -15,10 +15,6 @@ import {
 import styles from './organizations.module.scss';
 
 export default function OrganizationsPage() {
-  /*
-   * Keep the text the user is currently typing separate from
-   * the value sent to the API. This lets us debounce searches.
-   */
   const [searchInput, setSearchInput] =
     useState('');
 
@@ -41,16 +37,8 @@ export default function OrganizationsPage() {
   const [page, setPage] =
     useState(1);
 
-  /*
-   * The backend limits one request to 50 records.
-   * Ten organizations per page keeps the launcher easy to scan.
-   */
   const limit = 10;
 
-  /*
-   * Debounce organization search to avoid making an
-   * API request for every character typed.
-   */
   useEffect(() => {
     const timer =
       window.setTimeout(() => {
@@ -66,22 +54,6 @@ export default function OrganizationsPage() {
     };
   }, [searchInput]);
 
-  /*
-   * Changing a filter or sort order should always return
-   * the user to the first result page.
-   */
-  useEffect(() => {
-    setPage(1);
-  }, [
-    status,
-    sortBy,
-    sortOrder,
-  ]);
-
-  /*
-   * Search, filtering, sorting, and pagination are now
-   * performed by the NestJS backend.
-   */
   const {
     data,
     isLoading,
@@ -100,15 +72,32 @@ export default function OrganizationsPage() {
     },
   });
 
-  /*
-   * The new response contains the current page's items
-   * and pagination metadata.
-   */
   const organizations =
     data?.data.items ?? [];
 
   const pagination =
     data?.data.pagination;
+
+  const handleStatusChange = (
+    value: OrganizationStatus | '',
+  ) => {
+    setStatus(value);
+    setPage(1);
+  };
+
+  const handleSortByChange = (
+    value: OrganizationSortBy,
+  ) => {
+    setSortBy(value);
+    setPage(1);
+  };
+
+  const handleSortOrderChange = (
+    value: OrganizationSortOrder,
+  ) => {
+    setSortOrder(value);
+    setPage(1);
+  };
 
   const handlePageChange = (
     nextPage: number,
@@ -127,7 +116,6 @@ export default function OrganizationsPage() {
   return (
     <AppShell>
       <div className={styles.page}>
-        {/* Page heading and organization creation action. */}
         <div className={styles.header}>
           <div>
             <h1>Organizations</h1>
@@ -148,9 +136,6 @@ export default function OrganizationsPage() {
           </Link>
         </div>
 
-        {/* 
-         * Server-side search, filtering, and sorting controls.
-         */}
         <div className={styles.toolbar}>
           <input
             type="search"
@@ -169,7 +154,7 @@ export default function OrganizationsPage() {
           <select
             value={status}
             onChange={(event) =>
-              setStatus(
+              handleStatusChange(
                 event.target.value as
                   | OrganizationStatus
                   | '',
@@ -193,7 +178,7 @@ export default function OrganizationsPage() {
           <select
             value={sortBy}
             onChange={(event) =>
-              setSortBy(
+              handleSortByChange(
                 event.target.value as
                   OrganizationSortBy,
               )
@@ -224,7 +209,7 @@ export default function OrganizationsPage() {
           <select
             value={sortOrder}
             onChange={(event) =>
-              setSortOrder(
+              handleSortOrderChange(
                 event.target.value as
                   OrganizationSortOrder,
               )
@@ -241,7 +226,6 @@ export default function OrganizationsPage() {
           </select>
         </div>
 
-        {/* Result count and background refresh indicator. */}
         {!isLoading &&
           !isError &&
           pagination && (
@@ -280,10 +264,6 @@ export default function OrganizationsPage() {
           </div>
         )}
 
-        {/* 
-         * Empty state handles both a completely empty
-         * organization list and a search/filter with no results.
-         */}
         {!isLoading &&
           !isError &&
           organizations.length === 0 && (
@@ -321,7 +301,6 @@ export default function OrganizationsPage() {
           organizations.length >
             0 && (
             <>
-              {/* Organization cards. */}
               <div
                 className={styles.grid}
               >
@@ -360,10 +339,6 @@ export default function OrganizationsPage() {
                 )}
               </div>
 
-              {/* 
-               * Pagination is based on the total count returned
-               * by MongoDB rather than the current page length.
-               */}
               {pagination &&
                 pagination.totalPages >
                   1 && (

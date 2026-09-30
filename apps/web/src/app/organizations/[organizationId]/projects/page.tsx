@@ -2,10 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import {
-  useEffect,
-  useState,
-} from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   useDeleteProjectMutation,
@@ -41,13 +38,11 @@ export default function ProjectsPage() {
   const organizationId =
     params.organizationId as string;
 
-  const { success, error: notifyError } =
-    useNotification();
+  const {
+    success,
+    error: notifyError,
+  } = useNotification();
 
-  /**
-   * Search is kept locally so we can debounce it before
-   * sending requests to the API.
-   */
   const [searchInput, setSearchInput] =
     useState('');
 
@@ -67,10 +62,6 @@ export default function ProjectsPage() {
 
   const [page, setPage] = useState(1);
 
-  /**
-   * Debouncing prevents an API request on every single
-   * keystroke while the user is typing.
-   */
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearch(searchInput.trim());
@@ -99,8 +90,10 @@ export default function ProjectsPage() {
     },
   });
 
-  const [deleteProject, { isLoading: isDeleting }] =
-    useDeleteProjectMutation();
+  const [
+    deleteProject,
+    { isLoading: isDeleting },
+  ] = useDeleteProjectMutation();
 
   const projects =
     data?.data.items ?? [];
@@ -108,19 +101,16 @@ export default function ProjectsPage() {
   const pagination =
     data?.data.pagination;
 
-  /**
-   * If a filter/search reduces the number of pages,
-   * make sure the current page does not become invalid.
+  /*
+   * The API can report fewer pages after a filter/search.
+   * Use a safe page for rendering without updating state
+   * from inside an effect.
    */
-  useEffect(() => {
-    if (
-      pagination &&
-      pagination.totalPages > 0 &&
-      page > pagination.totalPages
-    ) {
-      setPage(pagination.totalPages);
-    }
-  }, [page, pagination]);
+  const effectivePage =
+    pagination &&
+    pagination.totalPages > 0
+      ? Math.min(page, pagination.totalPages)
+      : page;
 
   const handleStatusChange = (
     value: ProjectStatus | '',
@@ -222,7 +212,6 @@ export default function ProjectsPage() {
             </Link>
           </div>
 
-          {/* Search, filtering and sorting stay above the result grid. */}
           <div className={styles.toolbar}>
             <div className={styles.searchWrapper}>
               <label
@@ -259,8 +248,7 @@ export default function ProjectsPage() {
                 value={status}
                 onChange={(event) =>
                   handleStatusChange(
-                    event.target
-                      .value as
+                    event.target.value as
                       | ProjectStatus
                       | '',
                   )
@@ -294,8 +282,7 @@ export default function ProjectsPage() {
                 value={sortBy}
                 onChange={(event) =>
                   handleSortByChange(
-                    event.target
-                      .value as ProjectSortBy,
+                    event.target.value as ProjectSortBy,
                   )
                 }
                 className={styles.select}
@@ -335,8 +322,7 @@ export default function ProjectsPage() {
                 value={sortOrder}
                 onChange={(event) =>
                   handleSortOrderChange(
-                    event.target
-                      .value as ProjectSortOrder,
+                    event.target.value as ProjectSortOrder,
                   )
                 }
                 className={styles.select}
@@ -352,7 +338,6 @@ export default function ProjectsPage() {
             </div>
           </div>
 
-          {/* Shows the user exactly which slice of the dataset is visible. */}
           {!isLoading &&
             !isError &&
             pagination && (
@@ -501,7 +486,6 @@ export default function ProjectsPage() {
                 )}
               </div>
 
-              {/* Pagination is only shown when more than one page exists. */}
               {pagination &&
                 pagination.totalPages >
                   1 && (
@@ -517,7 +501,7 @@ export default function ProjectsPage() {
                         styles.pageButton
                       }
                       disabled={
-                        page <= 1 ||
+                        effectivePage <= 1 ||
                         isFetching
                       }
                       onClick={() =>
@@ -547,7 +531,7 @@ export default function ProjectsPage() {
                         styles.pageButton
                       }
                       disabled={
-                        page >=
+                        effectivePage >=
                           pagination.totalPages ||
                         isFetching
                       }

@@ -8,21 +8,23 @@ import {
   useAddOrganizationMemberMutation,
 } from './organizationsApi';
 
+import {
+  getApiErrorMessage,
+} from '@/store/api/apiSlice';
+
 import styles from './AddOrganizationMemberForm.module.scss';
 
 const addMemberSchema = z.object({
   email: z
     .string()
     .trim()
-    .email('Please enter a valid email address'),
+    .email(
+      'Please enter a valid email address',
+    ),
 
   /*
    * Owners cannot be assigned through the normal
-   * "Add Member" workflow.
-   *
-   * OrganizationRole may include "owner", but this form
-   * intentionally permits only the roles that an existing
-   * organization member can be assigned.
+   * Add Member workflow.
    */
   role: z.enum([
     'admin',
@@ -55,7 +57,9 @@ export function AddOrganizationMemberForm({
     },
     setError,
   } = useForm<AddMemberFormValues>({
-    resolver: zodResolver(addMemberSchema),
+    resolver: zodResolver(
+      addMemberSchema,
+    ),
     defaultValues: {
       email: '',
       role: 'member',
@@ -70,29 +74,24 @@ export function AddOrganizationMemberForm({
         organizationId,
         data: {
           email: values.email,
-          /*
-           * AddMemberFormValues.role is already a valid
-           * subset of the backend's OrganizationRole type.
-           *
-           * No type assertion is necessary.
-           */
           role: values.role,
         },
       }).unwrap();
 
       onSuccess();
-    } catch (error: any) {
+    } catch (error) {
       console.error(
         'Failed to add organization member:',
         error,
       );
 
-      const message =
-        error?.data?.message ??
-        'Failed to add member. Please try again.';
+      const messages =
+        getApiErrorMessage(error);
 
       setError('root', {
-        message,
+        message:
+          messages[0] ??
+          'Failed to add member. Please try again.',
       });
     }
   };
@@ -156,7 +155,9 @@ export function AddOrganizationMemberForm({
         <button
           type="submit"
           disabled={isLoading}
-          className={styles.submitButton}
+          className={
+            styles.submitButton
+          }
         >
           {isLoading
             ? 'Adding...'

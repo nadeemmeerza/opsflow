@@ -22,14 +22,26 @@ const editProjectSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(2, 'Project name must be at least 2 characters')
-    .max(100, 'Project name cannot exceed 100 characters'),
+    .min(
+      2,
+      'Project name must be at least 2 characters',
+    )
+    .max(
+      100,
+      'Project name cannot exceed 100 characters',
+    ),
 
   key: z
     .string()
     .trim()
-    .min(2, 'Project key must be at least 2 characters')
-    .max(20, 'Project key cannot exceed 20 characters')
+    .min(
+      2,
+      'Project key must be at least 2 characters',
+    )
+    .max(
+      20,
+      'Project key cannot exceed 20 characters',
+    )
     .regex(
       /^[a-zA-Z0-9_-]+$/,
       'Project key can contain letters, numbers, hyphens and underscores',
@@ -37,18 +49,28 @@ const editProjectSchema = z.object({
 
   description: z
     .string()
-    .max(1000, 'Description cannot exceed 1000 characters'),
+    .max(
+      1000,
+      'Description cannot exceed 1000 characters',
+    ),
 
-  status: z.enum(['active', 'archived']),
+  status: z.enum([
+    'active',
+    'archived',
+  ]),
 });
 
-type EditProjectFormValues = z.infer<
-  typeof editProjectSchema
->;
+type EditProjectFormValues =
+  z.infer<typeof editProjectSchema>;
 
 interface EditProjectFormProps {
   organizationId: string;
   project: Project;
+}
+
+interface ApiErrorState {
+  projectId: string;
+  messages: string[];
 }
 
 export default function EditProjectForm({
@@ -57,26 +79,20 @@ export default function EditProjectForm({
 }: EditProjectFormProps) {
   const router = useRouter();
 
-  /*
-   * Global notifications provide immediate feedback after
-   * successful updates or API failures.
-   */
   const {
     success,
     error: showError,
   } = useNotification();
 
-  /*
-   * Backend errors are also displayed inside the form so
-   * validation or business-rule failures are visible even
-   * after the toast disappears.
-   */
-  const [apiError, setApiError] = useState<string[]>(
-    [],
-  );
+  const [
+    apiError,
+    setApiError,
+  ] = useState<ApiErrorState | null>(null);
 
-  const [updateProject, { isLoading }] =
-    useUpdateProjectMutation();
+  const [
+    updateProject,
+    { isLoading },
+  ] = useUpdateProjectMutation();
 
   const {
     register,
@@ -84,33 +100,30 @@ export default function EditProjectForm({
     reset,
     formState: { errors },
   } = useForm<EditProjectFormValues>({
-    resolver: zodResolver(editProjectSchema),
+    resolver: zodResolver(
+      editProjectSchema,
+    ),
   });
 
-  /*
-   * Populate the form whenever the selected project changes.
-   *
-   * Clearing API errors here prevents an old error from one
-   * project from appearing while editing another project.
-   */
   useEffect(() => {
     reset({
       name: project.name,
       key: project.key,
-      description: project.description ?? '',
+      description:
+        project.description ?? '',
       status: project.status,
     });
-
-    setApiError([]);
   }, [project, reset]);
+
+  const currentApiMessages =
+    apiError?.projectId === project._id
+      ? apiError.messages
+      : [];
 
   const onSubmit = async (
     values: EditProjectFormValues,
   ) => {
-    /*
-     * Clear errors from the previous submission.
-     */
-    setApiError([]);
+    setApiError(null);
 
     try {
       await updateProject({
@@ -118,26 +131,23 @@ export default function EditProjectForm({
         projectId: project._id,
         data: {
           name: values.name.trim(),
-          key: values.key.trim().toUpperCase(),
-          description: values.description.trim(),
+          key: values.key
+            .trim()
+            .toUpperCase(),
+          description:
+            values.description.trim(),
           status: values.status,
         },
       }).unwrap();
 
-      /*
-       * Tell the user that the update completed before
-       * navigating back to the project details page.
-       */
-      success('Project updated successfully.');
+      success(
+        'Project updated successfully.',
+      );
 
       router.push(
         `/organizations/${organizationId}/projects/${project._id}`,
       );
     } catch (error) {
-      /*
-       * Convert the standard OpsFlow API error response
-       * into messages that can be displayed by the UI.
-       */
       const messages =
         getApiErrorMessage(error);
 
@@ -146,14 +156,11 @@ export default function EditProjectForm({
         error,
       );
 
-      /*
-       * Display all backend errors inside the form.
-       */
-      setApiError(messages);
+      setApiError({
+        projectId: project._id,
+        messages,
+      });
 
-      /*
-       * Show the first error globally as a toast.
-       */
       showError(
         messages[0] ??
           'Failed to update project.',
@@ -166,10 +173,9 @@ export default function EditProjectForm({
       className={styles.form}
       onSubmit={handleSubmit(onSubmit)}
     >
-      {/* Backend/API errors */}
-      {apiError.length > 0 && (
+      {currentApiMessages.length > 0 && (
         <div className={styles.error}>
-          {apiError.map(
+          {currentApiMessages.map(
             (message, index) => (
               <p key={index}>
                 {message}
@@ -262,7 +268,9 @@ export default function EditProjectForm({
       <div className={styles.actions}>
         <button
           type="button"
-          className={styles.secondaryButton}
+          className={
+            styles.secondaryButton
+          }
           disabled={isLoading}
           onClick={() =>
             router.push(
@@ -275,7 +283,9 @@ export default function EditProjectForm({
 
         <button
           type="submit"
-          className={styles.primaryButton}
+          className={
+            styles.primaryButton
+          }
           disabled={isLoading}
         >
           {isLoading

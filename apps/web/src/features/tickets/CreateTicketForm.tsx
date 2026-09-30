@@ -7,15 +7,12 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { useNotification } from "@/components/notifications/NotificationContext";
+import { useGetCustomersQuery } from "@/features/customers/customersApi";
+import { useGetOrganizationMembersQuery } from "@/features/organizations/organizationsApi";
+import { useGetProjectsQuery } from "@/features/projects/projectsApi";
 import { getApiErrorMessage } from "@/store/api/apiSlice";
 
-import { useCreateTicketMutation, useGetTicketsQuery } from "./ticketsApi";
-
-import { useGetCustomersQuery } from "@/features/customers/customersApi";
-
-import { useGetProjectsQuery } from "@/features/projects/projectsApi";
-
-import { useGetOrganizationMembersQuery } from "@/features/organizations/organizationsApi";
+import { useCreateTicketMutation } from "./ticketsApi";
 
 import styles from "./CreateTicketForm.module.scss";
 
@@ -57,34 +54,39 @@ export default function CreateTicketForm({
   // from React Hook Form's client-side validation.
   const [apiError, setApiError] = useState<string[]>([]);
 
-  const [createTicket, { isLoading }] = useCreateTicketMutation();
-
-  const { data: customersResponse, isLoading: customersLoading } =
-    useGetCustomersQuery({
-      organizationId,
-    });
-
-  const { data: projectsResponse, isLoading: projectsLoading } =
-    useGetProjectsQuery({
-      organizationId,
-      query: {
-        page: 1,
-        limit: 50,
-        sortBy: "name",
-        sortOrder: "asc",
-      },
-    });
+  const [createTicket, { isLoading }] =
+    useCreateTicketMutation();
 
   const {
-  data: membersResponse,
-  isLoading: membersLoading,
-} = useGetOrganizationMembersQuery({
-  organizationId,
-  query: {
-    page: 1,
-    limit: 10,
-  },
-});
+    data: customersResponse,
+    isLoading: customersLoading,
+  } = useGetCustomersQuery({
+    organizationId,
+  });
+
+  const {
+    data: projectsResponse,
+    isLoading: projectsLoading,
+  } = useGetProjectsQuery({
+    organizationId,
+    query: {
+      page: 1,
+      limit: 50,
+      sortBy: "name",
+      sortOrder: "asc",
+    },
+  });
+
+  const {
+    data: membersResponse,
+    isLoading: membersLoading,
+  } = useGetOrganizationMembersQuery({
+    organizationId,
+    query: {
+      page: 1,
+      limit: 10,
+    },
+  });
 
   const {
     register,
@@ -103,13 +105,18 @@ export default function CreateTicketForm({
     },
   });
 
-  const customers = customersResponse?.data.items ?? [];
+  const customers =
+    customersResponse?.data.items ?? [];
 
-  const projects = projectsResponse?.data.items ?? [];
+  const projects =
+    projectsResponse?.data.items ?? [];
 
-  const members = membersResponse?.data.items ?? [];
+  const members =
+    membersResponse?.data.items ?? [];
 
-  const onSubmit = async (values: CreateTicketFormValues) => {
+  const onSubmit = async (
+    values: CreateTicketFormValues,
+  ) => {
     // Clear errors from the previous submission.
     setApiError([]);
 
@@ -120,13 +127,16 @@ export default function CreateTicketForm({
         data: {
           title: values.title,
 
-          description: values.description || undefined,
+          description:
+            values.description || undefined,
 
           customerId: values.customerId,
 
-          projectId: values.projectId || undefined,
+          projectId:
+            values.projectId || undefined,
 
-          assigneeId: values.assigneeId || undefined,
+          assigneeId:
+            values.assigneeId || undefined,
 
           priority: values.priority,
         },
@@ -138,22 +148,35 @@ export default function CreateTicketForm({
         `/organizations/${organizationId}/tickets/${result.data._id}`,
       );
     } catch (error) {
-      const messages = getApiErrorMessage(error);
+      const messages =
+        getApiErrorMessage(error);
 
-      console.error("Failed to create ticket:", error);
+      console.error(
+        "Failed to create ticket:",
+        error,
+      );
 
       // Display all backend errors in the form.
       setApiError(messages);
 
       // Display the first error as a toast.
-      showError(messages[0] ?? "Failed to create ticket.");
+      showError(
+        messages[0] ??
+          "Failed to create ticket.",
+      );
     }
   };
 
-  const loadingOptions = customersLoading || projectsLoading || membersLoading;
+  const loadingOptions =
+    customersLoading ||
+    projectsLoading ||
+    membersLoading;
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+    <form
+      className={styles.form}
+      onSubmit={handleSubmit(onSubmit)}
+    >
       {apiError.length > 0 && (
         <div className={styles.error}>
           {apiError.map((message, index) => (
@@ -174,11 +197,17 @@ export default function CreateTicketForm({
           {...register("title")}
         />
 
-        {errors.title && <p className={styles.error}>{errors.title.message}</p>}
+        {errors.title && (
+          <p className={styles.error}>
+            {errors.title.message}
+          </p>
+        )}
       </div>
 
       <div className={styles.field}>
-        <label htmlFor="description">Description</label>
+        <label htmlFor="description">
+          Description
+        </label>
 
         <textarea
           id="description"
@@ -188,7 +217,9 @@ export default function CreateTicketForm({
         />
 
         {errors.description && (
-          <p className={styles.error}>{errors.description.message}</p>
+          <p className={styles.error}>
+            {errors.description.message}
+          </p>
         )}
       </div>
 
@@ -202,81 +233,120 @@ export default function CreateTicketForm({
           {...register("customerId")}
           disabled={loadingOptions}
         >
-          <option value="">Select customer</option>
+          <option value="">
+            Select customer
+          </option>
 
           {customers.map((customer) => (
-            <option key={customer._id} value={customer._id}>
+            <option
+              key={customer._id}
+              value={customer._id}
+            >
               {customer.name}
 
-              {customer.company ? ` — ${customer.company}` : ""}
+              {customer.company
+                ? ` — ${customer.company}`
+                : ""}
             </option>
           ))}
         </select>
 
         {errors.customerId && (
-          <p className={styles.error}>{errors.customerId.message}</p>
+          <p className={styles.error}>
+            {errors.customerId.message}
+          </p>
         )}
       </div>
 
       <div className={styles.field}>
-        <label htmlFor="projectId">Project</label>
+        <label htmlFor="projectId">
+          Project
+        </label>
 
         <select
           id="projectId"
           {...register("projectId")}
           disabled={loadingOptions}
         >
-          <option value="">No project</option>
+          <option value="">
+            No project
+          </option>
 
           {projects.map((project) => (
-            <option key={project._id} value={project._id}>
+            <option
+              key={project._id}
+              value={project._id}
+            >
               {project.key} — {project.name}
             </option>
           ))}
         </select>
 
         {errors.projectId && (
-          <p className={styles.error}>{errors.projectId.message}</p>
+          <p className={styles.error}>
+            {errors.projectId.message}
+          </p>
         )}
       </div>
 
       <div className={styles.field}>
-        <label htmlFor="assigneeId">Assignee</label>
+        <label htmlFor="assigneeId">
+          Assignee
+        </label>
 
         <select
           id="assigneeId"
           {...register("assigneeId")}
           disabled={loadingOptions}
         >
-          <option value="">Unassigned</option>
+          <option value="">
+            Unassigned
+          </option>
 
           {members.map((member) => (
-            <option key={member._id} value={member.userId}>
-              {member.user?.name ?? member.userId}
+            <option
+              key={member._id}
+              value={member.userId}
+            >
+              {member.user?.name ??
+                member.userId}
             </option>
           ))}
         </select>
 
         {errors.assigneeId && (
-          <p className={styles.error}>{errors.assigneeId.message}</p>
+          <p className={styles.error}>
+            {errors.assigneeId.message}
+          </p>
         )}
       </div>
 
       <div className={styles.field}>
-        <label htmlFor="priority">Priority</label>
+        <label htmlFor="priority">
+          Priority
+        </label>
 
-        <select id="priority" {...register("priority")}>
+        <select
+          id="priority"
+          {...register("priority")}
+        >
           <option value="low">Low</option>
 
-          <option value="medium">Medium</option>
+          <option value="medium">
+            Medium
+          </option>
 
           <option value="high">High</option>
 
-          <option value="urgent">Urgent</option>
+          <option value="urgent">
+            Urgent
+          </option>
         </select>
 
         {errors.priority && (
-          <p className={styles.error}>{errors.priority.message}</p>
+          <p className={styles.error}>
+            {errors.priority.message}
+          </p>
         )}
       </div>
 
@@ -285,7 +355,9 @@ export default function CreateTicketForm({
           type="button"
           className={styles.cancelButton}
           onClick={() =>
-            router.push(`/organizations/${organizationId}/tickets`)
+            router.push(
+              `/organizations/${organizationId}/tickets`,
+            )
           }
           disabled={isLoading}
         >
@@ -295,9 +367,13 @@ export default function CreateTicketForm({
         <button
           type="submit"
           className={styles.submitButton}
-          disabled={isLoading || loadingOptions}
+          disabled={
+            isLoading || loadingOptions
+          }
         >
-          {isLoading ? "Creating..." : "Create Ticket"}
+          {isLoading
+            ? "Creating..."
+            : "Create Ticket"}
         </button>
       </div>
     </form>
