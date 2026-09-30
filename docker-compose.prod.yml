@@ -2,6 +2,11 @@ services:
   # ==========================================================
   # MongoDB
   # ==========================================================
+  #
+  # MongoDB stores the persistent OpsFlow application data.
+  # The database is intentionally kept outside the application
+  # images so redeploying API/Web containers does not destroy data.
+  # ==========================================================
   mongodb:
     image: mongo:8
     container_name: opsflow-mongodb-prod
@@ -13,25 +18,34 @@ services:
       MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
 
     volumes:
+      # Persistent database storage.
       - mongodb_prod_data:/data/db
 
     networks:
       - opsflow-prod
 
     healthcheck:
+      # MongoDB must respond successfully before dependent
+      # application services are started.
       test:
         [
           "CMD-SHELL",
-          "mongosh --quiet --eval \"db.adminCommand('ping').ok\" | grep 1",
+          'mongosh --quiet --eval "db.adminCommand(''ping'').ok" | grep 1',
         ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
 
-
   # ==========================================================
   # Redis
+  # ==========================================================
+  #
+  # Redis is used by OpsFlow for application caching.
+  #
+  # Redis does not use a persistent volume here because the
+  # application treats Redis as a cache rather than the system
+  # of record. MongoDB remains the persistent data store.
   # ==========================================================
   redis:
     image: redis:7-alpine
@@ -42,23 +56,35 @@ services:
       - opsflow-prod
 
     healthcheck:
-      test:
-        [
-          "CMD",
-          "redis-cli",
-          "ping",
-        ]
+      # Redis must respond to PING before the API starts.
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
-
   # ==========================================================
   # NestJS API
   # ==========================================================
+  #
+  # The API image is pulled from GitHub Container Registry.
+  #
+  # DEPLOY_IMAGE_TAG determines which exact version is deployed.
+  #
+  # Example:
+  #
+  # DEPLOY_IMAGE_TAG=abc1234
+  #
+  # results in:
+  #
+  # ghcr.io/nadeemmeerza/opsflow-api:abc1234
+  #
+  # Using a commit-based tag makes deployments reproducible and
+  # gives us a straightforward rollback mechanism.
+  # ==========================================================
   api:
-    image: opsflow-api:local
+    image: ghcr.io/nadeemmeerza/opsflow-api:${DEPLOY_IMAGE_TAG}
+
     container_name: opsflow-api-prod
     restart: unless-stopped
 
@@ -66,15 +92,21 @@ services:
       NODE_ENV: production
       PORT: 3000
 
+      # The API connects to the MongoDB service using the
+      # Docker Compose service name rather than localhost.
       MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${MONGO_DATABASE}?authSource=admin
 
+      # JWT configuration is supplied through the deployment
+      # environment and is never hard-coded into the image.
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
 
+      # Redis is reachable through the Compose service name.
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PROJECT_TTL_SECONDS: ${REDIS_PROJECT_TTL_SECONDS}
 
+      # Controls which frontend origin may call the API.
       CORS_ORIGIN: ${CORS_ORIGIN}
 
     ports:
@@ -90,6 +122,8 @@ services:
       - opsflow-prod
 
     healthcheck:
+      # The API is considered healthy only when its readiness
+      # endpoint confirms that required dependencies are available.
       test:
         [
           "CMD",
@@ -104,12 +138,19 @@ services:
       retries: 5
       start_period: 30s
 
-
   # ==========================================================
   # Next.js Web
   # ==========================================================
+  #
+  # The frontend is also pulled from GHCR using the same
+  # deployment tag as the API.
+  #
+  # This is important because API and Web images should be
+  # deployed from the same source commit.
+  # ==========================================================
   web:
-    image: opsflow-web:local
+    image: ghcr.io/nadeemmeerza/opsflow-web:${DEPLOY_IMAGE_TAG}
+
     container_name: opsflow-web-prod
     restart: unless-stopped
 
@@ -118,29 +159,36 @@ services:
       PORT: 3001
       HOSTNAME: 0.0.0.0
 
+      # Public API URL used by the Next.js application.
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
 
     ports:
       - "3001:3001"
 
     depends_on:
+      # The frontend waits for the API to become healthy.
       api:
         condition: service_healthy
 
     networks:
       - opsflow-prod
 
-
 # ============================================================
 # Persistent storage
+# ============================================================
+#
+# This volume survives API/Web container replacement.
 # ============================================================
 
 volumes:
   mongodb_prod_data:
 
-
 # ============================================================
 # Private application network
+# ============================================================
+#
+# Application services communicate through this isolated
+# Docker bridge network.
 # ============================================================
 
 networks:

@@ -1,0 +1,303 @@
+name: OpsFlow CD
+
+# ============================================================
+# Deployment triggers
+# ============================================================
+#
+# The workflow can be started manually now.
+#
+# Automatic deployment from "main" is intentionally gated by
+# DEPLOY_ENABLED so we can safely prepare the complete workflow
+# before a VPS exists.
+#
+# When the VPS is ready, set:
+#
+# DEPLOY_ENABLED=true
+#
+# in GitHub repository variables.
+# ============================================================
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+
+# ============================================================
+# Permissions
+# ============================================================
+#
+# The deployment workflow does not publish images itself.
+# Docker CI/CD is responsible for publishing to GHCR.
+#
+# contents: read allows the workflow to access the repository.
+# ============================================================
+
+permissions:
+  contents: read
+
+# ============================================================
+# Concurrency
+# ============================================================
+#
+# Prevent two production deployments from running at the same
+# time.
+#
+# If another deployment starts while one is running, the older
+# deployment is cancelled.
+# ============================================================
+
+concurrency:
+  group: opsflow-production-deployment
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================================
+  # Production deployment
+  # ==========================================================
+  #
+  # This job remains skipped until DEPLOY_ENABLED is set to
+  # "true" in GitHub repository variables.
+  #
+  # This lets us safely commit the workflow before a VPS exists.
+  # ==========================================================
+
+  deploy:
+    name: Deploy OpsFlow to Production
+
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+
+    runs-on: ubuntu-latest
+
+    environment:
+      name: production
+
+    steps:
+      # --------------------------------------------------------
+      # 1. Checkout repository
+      # --------------------------------------------------------
+      #
+      # We need docker-compose.prod.yml from the exact commit
+      # that triggered this deployment.
+      # --------------------------------------------------------
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # --------------------------------------------------------
+      # 2. Verify deployment version
+      # --------------------------------------------------------
+      #
+      # GITHUB_SHA identifies the exact commit being deployed.
+      #
+      # Docker CI/CD publishes images using this same SHA.
+      # --------------------------------------------------------
+
+      - name: Display deployment version
+        run: |
+          echo "Deploying commit:"
+          echo "${GITHUB_SHA}"
+
+      # --------------------------------------------------------
+      # 3. Install SSH client
+      # --------------------------------------------------------
+      #
+      # Ubuntu runners normally include OpenSSH, but installing
+      # the client explicitly makes the workflow requirements
+      # obvious.
+      # --------------------------------------------------------
+
+      - name: Install SSH client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openssh-client
+
+      # --------------------------------------------------------
+      # 4. Configure SSH
+      # --------------------------------------------------------
+      #
+      # SSH_PRIVATE_KEY
+      #   Private key stored securely in GitHub Actions secrets.
+      #
+      # VPS_HOST
+      #   Public IP address or hostname of the VPS.
+      #
+      # VPS_USER
+      #   Linux user used for deployment.
+      #
+      # The private key is never written into the repository.
+      # --------------------------------------------------------
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/opsflow_deploy_key
+
+          chmod 600 ~/.ssh/opsflow_deploy_key
+
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      # --------------------------------------------------------
+      # 5. Copy production Compose file
+      # --------------------------------------------------------
+      #
+      # The deployment server receives the exact Compose file
+      # from the commit being deployed.
+      #
+      # The server's .env.production remains on the server.
+      #
+      # We deliberately DO NOT copy .env.production from GitHub.
+      # --------------------------------------------------------
+
+      - name: Upload production Compose file
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          scp \
+            -i ~/.ssh/opsflow_deploy_key \
+            docker-compose.prod.yml \
+            "${VPS_USER}@${VPS_HOST}:/opt/opsflow/docker-compose.prod.yml"
+
+      # --------------------------------------------------------
+      # 6. Deploy containers
+      # --------------------------------------------------------
+      #
+      # The deployment server:
+      #
+      # 1. Logs into GHCR
+      # 2. Pulls the exact Docker images
+      # 3. Starts/recreates the application
+      # 4. Removes unused old images
+      #
+      # DEPLOY_IMAGE_TAG is supplied directly from GITHUB_SHA.
+      #
+      # This means we never need to manually edit the production
+      # environment file for every deployment.
+      # --------------------------------------------------------
+
+      - name: Deploy application
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+
+        run: |
+          ssh \
+            -i ~/.ssh/opsflow_deploy_key \
+            "${VPS_USER}@${VPS_HOST}" \
+            "GHCR_USERNAME='${GHCR_USERNAME}' \
+             GHCR_READ_TOKEN='${GHCR_READ_TOKEN}' \
+             DEPLOY_IMAGE_TAG='${GITHUB_SHA}' \
+             bash -s" <<'REMOTE_SCRIPT'
+
+          set -euo pipefail
+
+          # ----------------------------------------------------
+          # Move into the OpsFlow deployment directory.
+          # ----------------------------------------------------
+
+          cd /opt/opsflow
+
+
+          # ----------------------------------------------------
+          # Authenticate Docker with GitHub Container Registry.
+          #
+          # GHCR_READ_TOKEN should only have the permissions
+          # required to pull private container packages.
+          # ----------------------------------------------------
+
+          echo "$GHCR_READ_TOKEN" | \
+            docker login ghcr.io \
+              --username "$GHCR_USERNAME" \
+              --password-stdin
+
+
+          # ----------------------------------------------------
+          # Pull the exact API and Web images generated from
+          # the Git commit being deployed.
+          #
+          # DEPLOY_IMAGE_TAG comes from GITHUB_SHA.
+          # ----------------------------------------------------
+
+          DEPLOY_IMAGE_TAG="$DEPLOY_IMAGE_TAG" \
+            docker compose \
+              --env-file .env.production \
+              -f docker-compose.prod.yml \
+              pull
+
+
+          # ----------------------------------------------------
+          # Recreate only the containers whose images/configuration
+          # changed.
+          #
+          # --remove-orphans prevents old Compose services from
+          # remaining around after architecture changes.
+          # ----------------------------------------------------
+
+          DEPLOY_IMAGE_TAG="$DEPLOY_IMAGE_TAG" \
+            docker compose \
+              --env-file .env.production \
+              -f docker-compose.prod.yml \
+              up -d \
+              --remove-orphans
+
+
+          # ----------------------------------------------------
+          # Remove unused Docker images.
+          #
+          # This prevents old application versions from
+          # continuously consuming VPS disk space.
+          # ----------------------------------------------------
+
+          docker image prune -f
+
+
+          # ----------------------------------------------------
+          # Display the final service status.
+          # ----------------------------------------------------
+
+          DEPLOY_IMAGE_TAG="$DEPLOY_IMAGE_TAG" \
+            docker compose \
+              --env-file .env.production \
+              -f docker-compose.prod.yml \
+              ps
+
+
+          # ----------------------------------------------------
+          # Logout from GHCR.
+          #
+          # The deployment server does not need to keep an
+          # active registry session after the deployment.
+          # ----------------------------------------------------
+
+          docker logout ghcr.io
+
+          REMOTE_SCRIPT
+
+      # --------------------------------------------------------
+      # 7. Deployment summary
+      # --------------------------------------------------------
+      #
+      # This makes the GitHub Actions run easier to inspect.
+      # --------------------------------------------------------
+
+      - name: Deployment summary
+        run: |
+          echo "=============================================="
+          echo "OpsFlow deployment completed"
+          echo "=============================================="
+          echo "Commit: ${GITHUB_SHA}"
+          echo "Registry: ghcr.io"
+          echo "API image:"
+          echo "  ghcr.io/nadeemmeerza/opsflow-api:${GITHUB_SHA}"
+          echo "Web image:"
+          echo "  ghcr.io/nadeemmeerza/opsflow-web:${GITHUB_SHA}"
+          echo "=============================================="
